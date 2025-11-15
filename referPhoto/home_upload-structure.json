@@ -1,0 +1,659 @@
+{
+  "metadata": {
+    "exportedAt": "2025-11-14T05:24:22.885Z",
+    "componentName": "home_upload",
+    "totalElements": 43,
+    "nestingDepth": 4,
+    "plugin": "Figma to JSON Exporter"
+  },
+  "designTokens": {
+    "colors": {
+      "color-rgb(238, 239, 223)": "rgb(238, 239, 223)",
+      "color-rgb(186, 162, 162)": "rgb(186, 162, 162)",
+      "color-rgb(217, 217, 217)": "rgb(217, 217, 217)",
+      "color-rgb(131, 112, 107)": "rgb(131, 112, 107)",
+      "color-rgb(224, 245, 218)": "rgb(224, 245, 218)",
+      "color-rgb(0, 0, 0)": "rgb(0, 0, 0)",
+      "color-rgb(6, 0, 1)": "rgb(6, 0, 1)",
+      "color-rgb(44, 44, 44)": "rgb(44, 44, 44)",
+      "color-rgb(35, 24, 21)": "rgb(35, 24, 21)"
+    },
+    "fonts": {
+      "inter": {
+        "family": "Inter",
+        "sizes": {
+          "size-16": "16px",
+          "size-20": "20px"
+        },
+        "weights": {
+          "weight-400": "400"
+        }
+      }
+    },
+    "spacing": {
+      "gap-247": "247px",
+      "gap-12": "12px"
+    },
+    "effects": {}
+  },
+  "structure": {
+    "name": "home_upload",
+    "type": "FRAME",
+    "size": {
+      "w": 419,
+      "h": 832
+    },
+    "styles": {
+      "layout": {
+        "direction": "row",
+        "gap": 0,
+        "align": {
+          "main": "start",
+          "cross": "start"
+        }
+      }
+    },
+    "children": [
+      {
+        "name": "rectangle-2",
+        "type": "RECTANGLE",
+        "size": {
+          "w": 363,
+          "h": 756
+        },
+        "styles": {
+          "bg": "rgb(238, 239, 223)"
+        }
+      },
+      {
+        "name": "rectangle-3",
+        "type": "RECTANGLE",
+        "size": {
+          "w": 363,
+          "h": 756
+        },
+        "styles": {
+          "bg": "rgb(238, 239, 223)",
+          "border": {
+            "width": 1,
+            "color": "rgb(0, 0, 0)"
+          }
+        }
+      },
+      {
+        "name": "rounded-rectangle",
+        "type": "INSTANCE",
+        "size": {
+          "w": 0,
+          "h": 0
+        }
+      },
+      {
+        "name": "rounded-rectangle",
+        "type": "INSTANCE",
+        "size": {
+          "w": 0,
+          "h": 0
+        }
+      },
+      {
+        "name": "rounded-rectangle",
+        "type": "INSTANCE",
+        "size": {
+          "w": 0,
+          "h": 0
+        }
+      },
+      {
+        "name": "rounded-rectangle",
+        "type": "INSTANCE",
+        "size": {
+          "w": 0,
+          "h": 0
+        }
+      },
+      {
+        "name": "rounded-rectangle",
+        "type": "INSTANCE",
+        "size": {
+          "w": 0,
+          "h": 0
+        }
+      },
+      {
+        "name": "------",
+        "type": "TEXT",
+        "size": {
+          "w": 203,
+          "h": 17
+        },
+        "content": "日期（月日）",
+        "styles": {
+          "bg": "rgb(186, 162, 162)",
+          "text": {
+            "family": "Inter",
+            "size": 16,
+            "weight": "400",
+            "align": "left"
+          }
+        }
+      },
+      {
+        "name": "------",
+        "type": "TEXT",
+        "size": {
+          "w": 203,
+          "h": 17
+        },
+        "content": "日期（月日）",
+        "styles": {
+          "bg": "rgb(186, 162, 162)",
+          "text": {
+            "family": "Inter",
+            "size": 16,
+            "weight": "400",
+            "align": "left"
+          }
+        }
+      },
+      {
+        "name": "frame",
+        "type": "FRAME",
+        "size": {
+          "w": 48,
+          "h": 48
+        },
+        "styles": {
+          "layout": {
+            "direction": "row",
+            "gap": 0,
+            "align": {
+              "main": "start",
+              "cross": "start"
+            }
+          }
+        }
+      },
+      {
+        "name": "title",
+        "type": "FRAME",
+        "size": {
+          "w": 343,
+          "h": 48
+        },
+        "styles": {
+          "layout": {
+            "direction": "row",
+            "gap": 247,
+            "align": {
+              "main": "start",
+              "cross": "start"
+            }
+          }
+        },
+        "children": [
+          {
+            "name": "frame-34078",
+            "type": "FRAME",
+            "size": {
+              "w": 48,
+              "h": 48
+            },
+            "styles": {
+              "layout": {
+                "direction": "row",
+                "gap": 12,
+                "align": {
+                  "main": "start",
+                  "cross": "center"
+                }
+              }
+            },
+            "children": [
+              {
+                "name": "rectangle-386",
+                "type": "RECTANGLE",
+                "size": {
+                  "w": 48,
+                  "h": 48
+                },
+                "styles": {
+                  "bg": "rgb(217, 217, 217)",
+                  "radius": 100
+                }
+              }
+            ]
+          },
+          {
+            "name": "plus",
+            "type": "FRAME",
+            "size": {
+              "w": 48,
+              "h": 48
+            },
+            "styles": {
+              "layout": {
+                "direction": "row",
+                "gap": 0,
+                "align": {
+                  "main": "start",
+                  "cross": "start"
+                }
+              }
+            },
+            "children": [
+              {
+                "name": "vector",
+                "type": "VECTOR",
+                "size": {
+                  "w": 48,
+                  "h": 48
+                },
+                "styles": {
+                  "bg": "rgb(131, 112, 107)"
+                }
+              },
+              {
+                "name": "vector",
+                "type": "VECTOR",
+                "size": {
+                  "w": 27,
+                  "h": 27
+                },
+                "styles": {
+                  "bg": "rgb(131, 112, 107)"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "rounded-rectangle",
+        "type": "COMPONENT",
+        "size": {
+          "w": 227,
+          "h": 228
+        },
+        "component": {
+          "type": "main",
+          "name": null
+        },
+        "styles": {
+          "layout": {
+            "direction": "row",
+            "gap": 0,
+            "align": {
+              "main": "start",
+              "cross": "start"
+            }
+          }
+        },
+        "children": [
+          {
+            "name": "rounded-rectangle",
+            "type": "RECTANGLE",
+            "size": {
+              "w": 227,
+              "h": 250
+            },
+            "styles": {
+              "bg": "rgb(224, 245, 218)",
+              "border": {
+                "width": 1,
+                "color": "rgb(0, 0, 0)"
+              },
+              "radius": 30
+            }
+          },
+          {
+            "name": "line-1",
+            "type": "LINE",
+            "size": {
+              "w": 183,
+              "h": 0
+            },
+            "styles": {
+              "border": {
+                "width": 1,
+                "color": "rgb(0, 0, 0)"
+              }
+            }
+          },
+          {
+            "name": "line-3",
+            "type": "VECTOR",
+            "size": {
+              "w": 224,
+              "h": 50
+            },
+            "styles": {
+              "border": {
+                "width": 1,
+                "color": "rgb(0, 0, 0)"
+              }
+            }
+          },
+          {
+            "name": "line-4",
+            "type": "VECTOR",
+            "size": {
+              "w": 227,
+              "h": 0
+            },
+            "styles": {
+              "border": {
+                "width": 1,
+                "color": "rgb(0, 0, 0)"
+              }
+            }
+          },
+          {
+            "name": "line-5",
+            "type": "LINE",
+            "size": {
+              "w": 227,
+              "h": 0
+            },
+            "styles": {
+              "border": {
+                "width": 1,
+                "color": "rgb(0, 0, 0)"
+              }
+            }
+          },
+          {
+            "name": "--",
+            "type": "TEXT",
+            "size": {
+              "w": 141,
+              "h": 38
+            },
+            "content": "导入",
+            "styles": {
+              "bg": "rgb(0, 0, 0)",
+              "text": {
+                "family": "Inter",
+                "size": 20,
+                "weight": "400",
+                "align": "left"
+              }
+            }
+          },
+          {
+            "name": "----",
+            "type": "TEXT",
+            "size": {
+              "w": 141,
+              "h": 38
+            },
+            "content": "输入文本",
+            "styles": {
+              "bg": "rgb(0, 0, 0)",
+              "text": {
+                "family": "Inter",
+                "size": 20,
+                "weight": "400",
+                "align": "left"
+              }
+            }
+          },
+          {
+            "name": "----",
+            "type": "TEXT",
+            "size": {
+              "w": 141,
+              "h": 38
+            },
+            "content": "打开网址",
+            "styles": {
+              "bg": "rgb(0, 0, 0)",
+              "text": {
+                "family": "Inter",
+                "size": 20,
+                "weight": "400",
+                "align": "left"
+              }
+            }
+          },
+          {
+            "name": "--",
+            "type": "TEXT",
+            "size": {
+              "w": 141,
+              "h": 38
+            },
+            "content": "拍照",
+            "styles": {
+              "bg": "rgb(0, 0, 0)",
+              "text": {
+                "family": "Inter",
+                "size": 20,
+                "weight": "400",
+                "align": "left"
+              }
+            }
+          },
+          {
+            "name": "--",
+            "type": "TEXT",
+            "size": {
+              "w": 141,
+              "h": 38
+            },
+            "content": "图库",
+            "styles": {
+              "bg": "rgb(0, 0, 0)",
+              "text": {
+                "family": "Inter",
+                "size": 20,
+                "weight": "400",
+                "align": "left"
+              }
+            }
+          },
+          {
+            "name": "file",
+            "type": "VECTOR",
+            "size": {
+              "w": 26,
+              "h": 21
+            },
+            "styles": {
+              "bg": "rgb(6, 0, 1)"
+            }
+          },
+          {
+            "name": "text-edit",
+            "type": "FRAME",
+            "size": {
+              "w": 30,
+              "h": 30
+            },
+            "styles": {
+              "layout": {
+                "direction": "row",
+                "gap": 0,
+                "align": {
+                  "main": "start",
+                  "cross": "start"
+                }
+              }
+            },
+            "children": [
+              {
+                "name": "vector",
+                "type": "VECTOR",
+                "size": {
+                  "w": 27,
+                  "h": 29
+                },
+                "styles": {
+                  "bg": "rgb(44, 44, 44)"
+                }
+              },
+              {
+                "name": "vector",
+                "type": "VECTOR",
+                "size": {
+                  "w": 18,
+                  "h": 1
+                },
+                "styles": {
+                  "bg": "rgb(44, 44, 44)"
+                }
+              },
+              {
+                "name": "vector",
+                "type": "VECTOR",
+                "size": {
+                  "w": 9,
+                  "h": 1
+                },
+                "styles": {
+                  "bg": "rgb(44, 44, 44)"
+                }
+              },
+              {
+                "name": "vector",
+                "type": "VECTOR",
+                "size": {
+                  "w": 14,
+                  "h": 1
+                },
+                "styles": {
+                  "bg": "rgb(44, 44, 44)"
+                }
+              },
+              {
+                "name": "vector",
+                "type": "VECTOR",
+                "size": {
+                  "w": 18,
+                  "h": 18
+                },
+                "styles": {
+                  "bg": "rgb(44, 44, 44)"
+                }
+              }
+            ]
+          },
+          {
+            "name": "internet",
+            "type": "VECTOR",
+            "size": {
+              "w": 30,
+              "h": 30
+            },
+            "styles": {
+              "bg": "rgb(44, 44, 44)"
+            }
+          },
+          {
+            "name": "take-picture",
+            "type": "FRAME",
+            "size": {
+              "w": 30,
+              "h": 30
+            },
+            "styles": {
+              "layout": {
+                "direction": "row",
+                "gap": 0,
+                "align": {
+                  "main": "start",
+                  "cross": "start"
+                }
+              }
+            },
+            "children": [
+              {
+                "name": "vector",
+                "type": "VECTOR",
+                "size": {
+                  "w": 27,
+                  "h": 22
+                },
+                "styles": {
+                  "bg": "rgb(35, 24, 21)"
+                }
+              },
+              {
+                "name": "vector",
+                "type": "VECTOR",
+                "size": {
+                  "w": 9,
+                  "h": 9
+                },
+                "styles": {
+                  "bg": "rgb(35, 24, 21)"
+                }
+              }
+            ]
+          },
+          {
+            "name": "library",
+            "type": "FRAME",
+            "size": {
+              "w": 30,
+              "h": 30
+            },
+            "styles": {
+              "layout": {
+                "direction": "row",
+                "gap": 0,
+                "align": {
+                  "main": "start",
+                  "cross": "start"
+                }
+              }
+            },
+            "children": [
+              {
+                "name": "vector",
+                "type": "VECTOR",
+                "size": {
+                  "w": 30,
+                  "h": 24
+                },
+                "styles": {
+                  "bg": "rgb(44, 44, 44)"
+                }
+              },
+              {
+                "name": "vector",
+                "type": "VECTOR",
+                "size": {
+                  "w": 25,
+                  "h": 11
+                },
+                "styles": {
+                  "bg": "rgb(44, 44, 44)"
+                }
+              },
+              {
+                "name": "vector",
+                "type": "VECTOR",
+                "size": {
+                  "w": 4,
+                  "h": 4
+                },
+                "styles": {
+                  "bg": "rgb(44, 44, 44)"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "summary": {
+    "components": 1,
+    "instances": 5,
+    "frames": 8,
+    "texts": 7,
+    "hasAutoLayout": true,
+    "hasEffects": false
+  }
+}

@@ -60,7 +60,7 @@ dependencies:
   provider: ^6.1.1
   
   # Internationalization
-  intl: ^0.19.0
+  intl: ^0.20.2
   
   # Shared preferences
   shared_preferences: ^2.2.2
@@ -70,6 +70,12 @@ dependencies:
   
   # Cached network image
   cached_network_image: ^3.3.0
+  
+  # Liquid glass effect
+  liquid_glass_renderer: ^0.2.0-dev.3
+  
+  # SVG support
+  flutter_svg: ^2.0.9 
 
 dev_dependencies:
   flutter_test:
@@ -97,6 +103,8 @@ flutter:
   assets:
     - lib/localization/en.json
     - lib/localization/zh.json
+    - referPhoto/male-2.svg
+    - referPhoto/female-2.svg
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware

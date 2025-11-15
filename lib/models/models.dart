@@ -103,6 +103,12 @@ class HistoryModel {
     this.file,
   });
 
+  // 便捷方法：获取文件名
+  String? get fileName => file?.originalName;
+  
+  // 便捷方法：获取文本内容
+  String? get resultText => file?.resultText;
+
   factory HistoryModel.fromJson(Map<String, dynamic> json) {
     return HistoryModel(
       id: json['id'],
@@ -149,13 +155,23 @@ class VoiceTypeModel {
   });
 
   factory VoiceTypeModel.fromJson(Map<String, dynamic> json) {
+    // 辅助函数：确保值是字符串类型
+    String ensureString(dynamic value, [String defaultValue = '']) {
+      if (value == null) return defaultValue;
+      if (value is String) return value;
+      if (value is List && value.isNotEmpty) {
+        return value.first.toString();
+      }
+      return value.toString();
+    }
+
     return VoiceTypeModel(
-      id: json['id'],
-      name: json['name'],
-      language: json['language'],
-      gender: json['gender'],
-      previewUrl: json['preview_url'],
-      description: json['description'],
+      id: ensureString(json['id']),
+      name: ensureString(json['name']),
+      language: ensureString(json['language']),
+      gender: ensureString(json['gender']),
+      previewUrl: ensureString(json['preview_url']),
+      description: ensureString(json['description']),
     );
   }
 

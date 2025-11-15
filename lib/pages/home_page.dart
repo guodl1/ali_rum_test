@@ -1,182 +1,291 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'upload_page.dart';
-import 'history_page.dart';
-import 'settings_page.dart';
-import '../widgets/liquid_glass_card.dart';
+import 'package:intl/intl.dart';
 
-/// 主页
+import '../models/models.dart';
+import '../services/api_service.dart';
+import '../services/localization_service.dart';
+import 'audio_player_page.dart';
+
+/// 主页 - 严格按照 home-structure.json 设计
+/// 参考 home.svg 的视觉效果
 class HomePage extends StatefulWidget {
   final Function(Locale)? onLanguageChange;
-  
-  const HomePage({Key? key, this.onLanguageChange}) : super(key: key);
+  final VoidCallback? onNavigateToUpload;
+
+  const HomePage({Key? key, this.onLanguageChange, this.onNavigateToUpload}) : super(key: key);
 
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
-  int _currentIndex = 0;
+  final ApiService _apiService = ApiService();
+  final DateFormat _dateLabelFormat = DateFormat('MM-dd');
+  final DateFormat _timeFormat = DateFormat('HH:mm');
 
-  final List<Widget> _pages = [
-    const HomeContentPage(),
-    const UploadPage(),
-    const HistoryPage(),
-    const SettingsPage(),
-  ];
+  List<HistoryModel> _history = [];
+  bool _isLoading = false;
+  bool _hasLoadedOnce = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadHistory();
+  }
+
+  Future<void> _loadHistory() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final history = await _apiService.getHistory(pageSize: 20);
+      if (!mounted) return;
+
+      setState(() {
+        _history = history;
+        _isLoading = false;
+        _hasLoadedOnce = true;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _hasLoadedOnce = true;
+      });
+    }
+  }
+
+  Map<String, List<HistoryModel>> _groupHistory(List<HistoryModel> items, AppLocalizations localizations) {
+    final Map<String, List<HistoryModel>> grouped = {};
+    final now = DateTime.now();
+
+    for (final history in items) {
+      final created = history.createdAt;
+      String label;
+
+      if (_isSameDay(created, now)) {
+        label = localizations.translate('today');
+      } else if (_isSameDay(created, now.subtract(const Duration(days: 1)))) {
+        label = localizations.translate('yesterday');
+      } else {
+        label = _dateLabelFormat.format(created);
+      }
+
+      grouped.putIfAbsent(label, () => []).add(history);
+    }
+
+    return grouped;
+  }
+
+  bool _isSameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    // 严格按照 home-structure.json 的背景色 rgb(238, 239, 223)
+    final backgroundColor = isDark
+        ? const Color(0xFF191815)
+        : const Color(0xFFEEEFDF); // rgb(238, 239, 223)
+
+    final textColor = isDark
+        ? const Color(0xFFF1EEE3)
+        : const Color(0xFF191815);
+
+    final localizations = AppLocalizations.of(context)!;
+    final groupedHistory = _groupHistory(_history, localizations);
+
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Theme.of(context).brightness == Brightness.dark
-            ? Brightness.light
-            : Brightness.dark,
+        statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+        statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
       ),
       child: Scaffold(
-        body: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 300),
-          child: _pages[_currentIndex],
+        backgroundColor: backgroundColor,
+        body: SafeArea(
+          child: Column(
+            children: [
+              // 顶部标题栏 - 参考 home-structure.json 的 title frame (343x48)
+              _buildTopBar(textColor),
+              
+              // 内容区域 - 历史记录列表
+              Expanded(
+                child: RefreshIndicator(
+                  onRefresh: _loadHistory,
+                  color: const Color(0xFF3742D7),
+                  backgroundColor: backgroundColor,
+                  child: _isLoading && !_hasLoadedOnce
+                      ? _buildLoadingState(textColor)
+                      : groupedHistory.isEmpty
+                          ? _buildEmptyState(textColor, localizations)
+                          : ListView(
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                              children: [
+                                ...groupedHistory.entries.expand((entry) {
+                                  final label = entry.key;
+                                  final items = entry.value;
+                                  return [
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 12, bottom: 8),
+                                      child: Text(
+                                        label,
+                                        style: TextStyle(
+                                          color: textColor.withValues(alpha: 0.6),
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w400,
+                                        ),
+                                      ),
+                                    ),
+                                    ...items.map(
+                                      (history) => _buildHistoryCard(history, textColor),
+                                    ),
+                                  ];
+                                }),
+                              ],
+                            ),
+                ),
+              ),
+              
+              // 底部导航栏 - 参考 home-structure.json 的 nav frame (345x81)
+            ],
+          ),
         ),
-        bottomNavigationBar: _buildBottomNavigationBar(),
       ),
     );
   }
 
-  Widget _buildBottomNavigationBar() {
+  /// 顶部标题栏 - 参考 home-structure.json title frame
+  /// 左侧：头像 (48x48)，右侧：加号按钮 (48x48)
+  Widget _buildTopBar(Color textColor) {
     return Container(
-      decoration: BoxDecoration(
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, -5),
+      width: 343,
+      height: 48,
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // 左侧头像 - frame-34078 (48x48)
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: const Color(0xFFD9D9D9), // rgb(217, 217, 217)
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.person,
+              color: textColor,
+            ),
           ),
-        ],
-      ),
-      child: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
-        type: BottomNavigationBarType.fixed,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            activeIcon: Icon(Icons.home),
-            label: 'Home',
+          // 右侧加号按钮 - plus frame (48x48)
+        GestureDetector(
+          onTap: () {
+            // 使用和bottom bar一样的导航方式
+            if (widget.onNavigateToUpload != null) {
+              widget.onNavigateToUpload!();
+            }
+          },
+          child: Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: Colors.black,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.add,
+              color: Colors.white,
+              size: 24,
+            ),
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.upload_outlined),
-            activeIcon: Icon(Icons.upload),
-            label: 'Upload',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.history_outlined),
-            activeIcon: Icon(Icons.history),
-            label: 'History',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings_outlined),
-            activeIcon: Icon(Icons.settings),
-            label: 'Settings',
-          ),
+        ),
         ],
       ),
     );
   }
-}
 
-/// 首页内容页
-class HomeContentPage extends StatelessWidget {
-  const HomeContentPage({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+  /// 历史记录卡片 - 参考 home-structure.json 的 rounded-rectangle (307x77)
+  Widget _buildHistoryCard(HistoryModel history, Color textColor) {
+    return Container(
+      width: 307,
+      height: 77,
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE8E1C4), // rgb(232, 225, 196)
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Row(
           children: [
-            // 标题
-            Text(
-              'TTS Reader',
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
+            // 左侧：时间和播放源
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // 时间标签
+                  Text(
+                    _timeFormat.format(history.createdAt),
+                    style: const TextStyle(
+                      color: Color(0xFF716161), // rgb(113, 97, 97)
+                      fontSize: 14,
+                      fontWeight: FontWeight.w400,
+                      height: 1.2,
+                    ),
                   ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Convert your documents to speech',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.grey[600],
+                  const SizedBox(height: 2),
+                  // 播放声音源
+                  Text(
+                    history.voiceType,
+                    style: const TextStyle(
+                      color: Color(0xFF716161),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w400,
+                      height: 1.2,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
+                  const SizedBox(height: 2),
+                  // 标题
+                  Text(
+                    history.file?.originalName ?? 'title',
+                    style: const TextStyle(
+                      color: Colors.black,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w400,
+                      height: 1.2,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 24),
-            // 快速操作卡片
-            _buildQuickActionCard(
-              context,
-              icon: Icons.upload_file,
-              title: 'Upload Document',
-              subtitle: 'PDF, DOCX, TXT, EPUB',
-              color: Colors.blue,
-              onTap: () {
-                // 跳转到上传页面
-              },
-            ),
-            const SizedBox(height: 16),
-            _buildQuickActionCard(
-              context,
-              icon: Icons.image,
-              title: 'Upload Image',
-              subtitle: 'JPG, PNG, BMP',
-              color: Colors.green,
-              onTap: () {
-                // 跳转到上传页面
-              },
-            ),
-            const SizedBox(height: 16),
-            _buildQuickActionCard(
-              context,
-              icon: Icons.link,
-              title: 'Input URL',
-              subtitle: 'Extract content from web',
-              color: Colors.orange,
-              onTap: () {
-                // 跳转到上传页面
-              },
-            ),
-            const SizedBox(height: 24),
-            // 最近历史
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Recent History',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+            const SizedBox(width: 8),
+            // 右侧：播放图标
+            GestureDetector(
+              onTap: () => _openAudioPlayer(history),
+              child: Container(
+                width: 29,
+                height: 29,
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: const Color(0xFF757575), // rgb(117, 117, 117)
+                    width: 4,
+                  ),
+                  shape: BoxShape.circle,
                 ),
-                TextButton(
-                  onPressed: () {
-                    // 查看全部历史
-                  },
-                  child: const Text('View All'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            // 这里可以添加最近历史列表
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.all(32),
-                child: Text(
-                  'No recent history',
-                  style: TextStyle(color: Colors.grey[400]),
+                child: const Icon(
+                  Icons.play_arrow,
+                  size: 16,
+                  color: Color(0xFF757575),
                 ),
               ),
             ),
@@ -186,61 +295,46 @@ class HomeContentPage extends StatelessWidget {
     );
   }
 
-  Widget _buildQuickActionCard(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return LiquidGlassCard(
-      onTap: onTap,
-      child: Row(
+
+  Widget _buildLoadingState(Color textColor) {
+    return Center(
+      child: CircularProgressIndicator(
+        color: textColor,
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(Color textColor, AppLocalizations localizations) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              icon,
-              size: 30,
-              color: color,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                  ),
-                ),
-              ],
-            ),
-          ),
           Icon(
-            Icons.arrow_forward_ios,
-            size: 16,
-            color: Colors.grey[400],
+            Icons.inbox_outlined,
+            color: textColor.withValues(alpha: 0.5),
+            size: 64,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            localizations.translate('no_recent_history'),
+            style: TextStyle(
+              color: textColor.withValues(alpha: 0.6),
+              fontSize: 16,
+            ),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _openAudioPlayer(HistoryModel history) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => AudioPlayerPage(history: history),
+      ),
+    );
+    if (mounted) {
+      _loadHistory();
+    }
   }
 }

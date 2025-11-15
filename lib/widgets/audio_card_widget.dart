@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import '../models/models.dart';
+import '../services/audio_service.dart';
 import 'liquid_glass_card.dart';
 
 /// 音频卡片组件
-/// 展示历史记录中的音频项
-class AudioCardWidget extends StatelessWidget {
+/// 展示历史记录中的音频项，支持显示播放进度
+class AudioCardWidget extends StatefulWidget {
   final HistoryModel history;
   final VoidCallback? onPlay;
   final VoidCallback? onFavorite;
@@ -19,6 +20,27 @@ class AudioCardWidget extends StatelessWidget {
   }) : super(key: key);
 
   @override
+  State<AudioCardWidget> createState() => _AudioCardWidgetState();
+}
+
+class _AudioCardWidgetState extends State<AudioCardWidget> {
+  final AudioService _audioService = AudioService();
+  double _progress = 0.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProgress();
+  }
+
+  Future<void> _loadProgress() async {
+    final progress = await _audioService.getProgressPercentage(widget.history.id);
+    if (mounted) {
+      setState(() => _progress = progress);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return LiquidGlassCard(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -29,14 +51,14 @@ class AudioCardWidget extends StatelessWidget {
           Row(
             children: [
               Icon(
-                _getFileIcon(history.file?.type ?? 'unknown'),
+                _getFileIcon(widget.history.file?.type ?? 'unknown'),
                 size: 24,
                 color: Theme.of(context).colorScheme.primary,
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  history.file?.originalName ?? 'Unknown',
+                  widget.history.file?.originalName ?? 'Unknown',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -47,27 +69,55 @@ class AudioCardWidget extends StatelessWidget {
               ),
               IconButton(
                 icon: Icon(
-                  history.isFavorite ? Icons.favorite : Icons.favorite_border,
-                  color: history.isFavorite ? Colors.red : null,
+                  widget.history.isFavorite ? Icons.favorite : Icons.favorite_border,
+                  color: widget.history.isFavorite ? Colors.red : null,
                 ),
-                onPressed: onFavorite,
+                onPressed: widget.onFavorite,
               ),
             ],
           ),
           const SizedBox(height: 8),
+          
+          // 播放进度条
+          if (_progress > 0.01)
+            Column(
+              children: [
+                LinearProgressIndicator(
+                  value: _progress,
+                  backgroundColor: Colors.grey[300],
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Continue from ${(_progress * 100).toStringAsFixed(0)}%',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Theme.of(context).colorScheme.primary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
+          
           // 语音类型和时间
           Row(
             children: [
               Chip(
                 label: Text(
-                  history.voiceType,
+                  widget.history.voiceType,
                   style: const TextStyle(fontSize: 12),
                 ),
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
               ),
               const SizedBox(width: 8),
               Text(
-                _formatDateTime(history.createdAt),
+                _formatDateTime(widget.history.createdAt),
                 style: TextStyle(
                   fontSize: 12,
                   color: Colors.grey[600],
@@ -81,14 +131,14 @@ class AudioCardWidget extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               TextButton.icon(
-                onPressed: onPlay,
+                onPressed: widget.onPlay,
                 icon: const Icon(Icons.play_arrow),
-                label: const Text('Play'),
+                label: Text(_progress > 0.01 ? 'Continue' : 'Play'),
               ),
               const SizedBox(width: 8),
               IconButton(
                 icon: const Icon(Icons.delete_outline),
-                onPressed: onDelete,
+                onPressed: widget.onDelete,
                 color: Colors.red[400],
               ),
             ],

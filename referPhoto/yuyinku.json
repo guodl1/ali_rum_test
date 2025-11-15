@@ -1,0 +1,175 @@
+{
+  "metadata": {
+    "exportedAt": "2025-11-13T12:48:58.653Z",
+    "componentName": "语音库",
+    "totalElements": 11,
+    "nestingDepth": 3,
+    "plugin": "Figma to JSON Exporter"
+  },
+  "designTokens": {
+    "colors": {
+      "color-rgb(238, 239, 223)": "rgb(238, 239, 223)",
+      "color-rgb(39, 37, 54)": "rgb(39, 37, 54)",
+      "color-rgb(0, 0, 0)": "rgb(0, 0, 0)"
+    },
+    "fonts": {
+      "inter": {
+        "family": "Inter",
+        "sizes": {
+          "size-30": "30px"
+        },
+        "weights": {
+          "weight-400": "400"
+        }
+      }
+    },
+    "spacing": {},
+    "effects": {}
+  },
+  "structure": {
+    "name": "---",
+    "type": "COMPONENT",
+    "size": {
+      "w": 352,
+      "h": 778
+    },
+    "component": {
+      "type": "main",
+      "name": null
+    },
+    "styles": {
+      "layout": {
+        "direction": "row",
+        "gap": 0,
+        "align": {
+          "main": "start",
+          "cross": "start"
+        }
+      }
+    },
+    "children": [
+      {
+        "name": "rectangle-2",
+        "type": "RECTANGLE",
+        "size": {
+          "w": 352,
+          "h": 778
+        },
+        "styles": {
+          "bg": "rgb(238, 239, 223)"
+        }
+      },
+      {
+        "name": "added",
+        "type": "INSTANCE",
+        "size": {
+          "w": 0,
+          "h": 0
+        }
+      },
+      {
+        "name": "added",
+        "type": "INSTANCE",
+        "size": {
+          "w": 0,
+          "h": 0
+        }
+      },
+      {
+        "name": "frame",
+        "type": "FRAME",
+        "size": {
+          "w": 45,
+          "h": 45
+        },
+        "styles": {
+          "layout": {
+            "direction": "row",
+            "gap": 0,
+            "align": {
+              "main": "start",
+              "cross": "start"
+            }
+          }
+        },
+        "children": [
+          {
+            "name": "vector",
+            "type": "VECTOR",
+            "size": {
+              "w": 0,
+              "h": 0
+            },
+            "styles": {
+              "bg": "rgb(39, 37, 54)"
+            }
+          },
+          {
+            "name": "vector",
+            "type": "VECTOR",
+            "size": {
+              "w": 37,
+              "h": 37
+            },
+            "styles": {
+              "bg": "rgb(39, 37, 54)"
+            }
+          },
+          {
+            "name": "vector",
+            "type": "VECTOR",
+            "size": {
+              "w": 16,
+              "h": 16
+            },
+            "styles": {
+              "bg": "rgb(39, 37, 54)"
+            }
+          }
+        ]
+      },
+      {
+        "name": "---",
+        "type": "TEXT",
+        "size": {
+          "w": 163,
+          "h": 44
+        },
+        "content": "语音库",
+        "styles": {
+          "bg": "rgb(0, 0, 0)",
+          "text": {
+            "family": "Inter",
+            "size": 30,
+            "weight": "400",
+            "align": "left"
+          }
+        }
+      },
+      {
+        "name": "vector",
+        "type": "VECTOR",
+        "size": {
+          "w": 317,
+          "h": 77
+        }
+      },
+      {
+        "name": "play-circle",
+        "type": "INSTANCE",
+        "size": {
+          "w": 0,
+          "h": 0
+        }
+      }
+    ]
+  },
+  "summary": {
+    "components": 1,
+    "instances": 3,
+    "frames": 1,
+    "texts": 1,
+    "hasAutoLayout": true,
+    "hasEffects": false
+  }
+}

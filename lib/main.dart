@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'pages/home_page.dart';
+import 'widgets/main_navigator.dart';
 import 'services/localization_service.dart';
 
 void main() async {
@@ -70,7 +70,7 @@ class _MyAppState extends State<MyApp> {
       themeMode: _themeMode,
       
       // 首页
-      home: HomePage(onLanguageChange: changeLanguage),
+      home: const MainNavigator(),
     );
   }
 
@@ -88,7 +88,7 @@ class _MyAppState extends State<MyApp> {
         elevation: 0,
         scrolledUnderElevation: 0,
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
@@ -120,7 +120,7 @@ class _MyAppState extends State<MyApp> {
         elevation: 0,
         scrolledUnderElevation: 0,
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),

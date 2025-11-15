@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../widgets/audio_card_widget.dart';
 import '../services/api_service.dart';
-import '../services/audio_service.dart';
 import '../models/models.dart';
+import 'audio_player_page.dart';
 
 /// 历史记录页面
 class HistoryPage extends StatefulWidget {
@@ -15,7 +15,6 @@ class HistoryPage extends StatefulWidget {
 
 class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStateMixin {
   final ApiService _apiService = ApiService();
-  final AudioService _audioService = AudioService();
   
   late TabController _tabController;
   List<HistoryModel> _allHistory = [];
@@ -71,6 +70,7 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
             : Brightness.dark,
       ),
       child: Scaffold(
+        backgroundColor: Colors.transparent,
         appBar: AppBar(
           title: const Text('History'),
           elevation: 0,
@@ -148,17 +148,18 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
 
   Future<void> _playAudio(HistoryModel history) async {
     try {
-      await _audioService.play(history.audioUrl);
-      
+      // 导航到播放页面，支持断点续播
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Playing audio...')),
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => AudioPlayerPage(history: history),
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error playing audio: $e')),
+          SnackBar(content: Text('Error: $e')),
         );
       }
     }

@@ -50,22 +50,35 @@ class ApiService {
     }
   }
 
-  /// 提交文本进行TTS转换
+  /// 提交文本进行TTS转换（统一接口）
+  /// provider: 'azure', 'google', 'minimax'
+  /// Azure/Google: 使用 voiceType
+  /// Minimax: 使用 voiceId + model
   Future<Map<String, dynamic>> generateAudio({
     required String text,
-    required String voiceType,
+    String provider = 'azure',
+    String? voiceType,
+    String? voiceId,
+    String? model,
+    int? fileId,
     String? userId,
   }) async {
     try {
+      final body = {
+        'text': text,
+        'provider': provider,
+        if (voiceType != null) 'voice_type': voiceType,
+        if (voiceId != null) 'voice_id': voiceId,
+        if (model != null) 'model': model,
+        if (fileId != null) 'file_id': fileId,
+        if (userId != null) 'user_id': userId,
+      };
+
       final response = await _client
           .post(
             Uri.parse('$baseUrl/api/generate-audio'),
             headers: {'Content-Type': 'application/json'},
-            body: json.encode({
-              'text': text,
-              'voice_type': voiceType,
-              'user_id': userId,
-            }),
+            body: json.encode(body),
           )
           .timeout(Duration(milliseconds: AppConfig.receiveTimeout));
 
@@ -147,10 +160,19 @@ class ApiService {
     }
   }
 
-  /// 获取语音类型列表
-  Future<List<VoiceTypeModel>> getVoiceTypes({String? language}) async {
+  /// 检查语音类型数量（只检查数量，不返回完整数据）
+  /// [versionTag] 当前版本标签，用于提取数量
+  Future<Map<String, dynamic>> checkVoiceTypesCount({
+    String? versionTag,
+  }) async {
     try {
-      final queryParams = language != null ? {'language': language} : null;
+      final queryParams = <String, String>{
+        'check_only': 'true',
+      };
+      if (versionTag != null) {
+        queryParams['version_tag'] = versionTag;
+      }
+      
       final uri = Uri.parse('$baseUrl/api/voice-types').replace(
         queryParameters: queryParams,
       );
@@ -161,13 +183,81 @@ class ApiService {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        final List<dynamic> voiceList = data['data'];
-        return voiceList.map((json) => VoiceTypeModel.fromJson(json)).toList();
+        return {
+          'count': data['count'] ?? 0,
+          'version_tag': data['version_tag'],
+          'needs_update': data['needs_update'] ?? true,
+        };
+      } else {
+        throw Exception('Check voice types count failed: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Check voice types count error: $e');
+    }
+  }
+
+  /// 获取语音类型列表（支持增量更新）
+  /// [language] 语言过滤
+  /// [versionTag] 当前版本标签，如果提供且服务器返回无更新，则返回空列表
+  Future<Map<String, dynamic>> getVoiceTypes({
+    String? language,
+    String? versionTag,
+  }) async {
+    try {
+      final queryParams = <String, String>{};
+      if (language != null) {
+        queryParams['language'] = language;
+      }
+      if (versionTag != null) {
+        queryParams['version_tag'] = versionTag;
+      }
+      
+      final uri = Uri.parse('$baseUrl/api/voice-types').replace(
+        queryParameters: queryParams.isEmpty ? null : queryParams,
+      );
+
+      final response = await _client.get(uri).timeout(
+            Duration(milliseconds: AppConfig.connectionTimeout),
+          );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final List<dynamic> voiceList = data['data'] ?? [];
+        final String? newVersionTag = data['version_tag'];
+        final bool updated = data['updated'] ?? true;
+        
+        return {
+          'voices': voiceList.map((json) => VoiceTypeModel.fromJson(json)).toList(),
+          'version_tag': newVersionTag,
+          'updated': updated,
+        };
       } else {
         throw Exception('Get voice types failed: ${response.statusCode}');
       }
     } catch (e) {
       throw Exception('Get voice types error: $e');
+    }
+  }
+
+  /// 获取 Minimax 声线列表
+  Future<List<Map<String, dynamic>>> getMinimaxVoices() async {
+    try {
+      final response = await _client
+          .get(Uri.parse('$baseUrl/api/minimax/voices'))
+          .timeout(Duration(milliseconds: AppConfig.connectionTimeout));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['success'] == true) {
+          return List<Map<String, dynamic>>.from(data['data'] ?? []);
+        } else {
+          throw Exception('Failed to get Minimax voices');
+        }
+      } else {
+        throw Exception('Get Minimax voices failed: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Get Minimax voices error: $e');
     }
   }
 
@@ -198,7 +288,7 @@ class ApiService {
     }
   }
 
-  /// 获取任务状态
+  /// 获取任务状态（含远程查询，用于 Minimax 等异步任务）
   Future<Map<String, dynamic>> getTaskStatus(String taskId) async {
     try {
       final response = await _client
@@ -212,6 +302,66 @@ class ApiService {
       }
     } catch (e) {
       throw Exception('Get task status error: $e');
+    }
+  }
+
+  /// 获取任务进度（仅本地缓存，快速接口）
+  Future<Map<String, dynamic>> getProgress(String taskId) async {
+    try {
+      final response = await _client
+          .get(Uri.parse('$baseUrl/api/progress/$taskId'))
+          .timeout(Duration(milliseconds: AppConfig.connectionTimeout));
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else if (response.statusCode == 404) {
+        throw Exception('Task not found or expired');
+      } else {
+        throw Exception('Get progress failed: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Get progress error: $e');
+    }
+  }
+
+  /// 获取文件处理状态（用于轮询 OCR 等处理）
+  Future<Map<String, dynamic>> getFileStatus(int fileId) async {
+    try {
+      final response = await _client
+          .get(Uri.parse('$baseUrl/api/upload/$fileId'))
+          .timeout(Duration(milliseconds: AppConfig.connectionTimeout));
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else if (response.statusCode == 404) {
+        throw Exception('File not found');
+      } else {
+        throw Exception('Get file status failed: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Get file status error: $e');
+    }
+  }
+
+  /// 获取用户使用统计
+  Future<Map<String, dynamic>> getUserUsageStats({String? userId}) async {
+    try {
+      final queryParams = userId != null ? {'user_id': userId} : null;
+      final uri = Uri.parse('$baseUrl/api/usage-stats').replace(
+        queryParameters: queryParams,
+      );
+
+      final response = await _client.get(uri).timeout(
+            Duration(milliseconds: AppConfig.connectionTimeout),
+          );
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        throw Exception('Get usage stats failed: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Get usage stats error: $e');
     }
   }
 
