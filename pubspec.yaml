@@ -45,7 +45,7 @@ dependencies:
   audioplayers: ^5.2.1
   
   # File picker
-  file_picker: ^6.1.1
+  file_picker: ^10.3.6
   
   # Image picker
   image_picker: ^1.0.7
