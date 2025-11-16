@@ -282,6 +282,9 @@ class _ImageUploadPageState extends State<ImageUploadPage> {
         throw Exception('未获取到音频URL');
       }
 
+      // 将可空 audioUrl 提升为不可空类型，避免在后续 await 后失去类型提升
+      final String resolvedAudioUrl = audioUrl;
+
       setState(() {
         _isUploading = false;
       });
@@ -294,16 +297,16 @@ class _ImageUploadPageState extends State<ImageUploadPage> {
         final historyList = await _apiService.getHistory();
         history = historyList.firstWhere(
           (h) => h.id == historyId,
-          orElse: () => _createHistoryFromResult(
-            {'audio_url': audioUrl, 'file_id': fileId},
-            audioUrl,
+            orElse: () => _createHistoryFromResult(
+            {'audio_url': resolvedAudioUrl, 'file_id': fileId},
+            resolvedAudioUrl,
             extractedText,
           ),
         );
       } else {
         history = _createHistoryFromResult(
-          {'audio_url': audioUrl, 'file_id': fileId},
-          audioUrl,
+          {'audio_url': resolvedAudioUrl, 'file_id': fileId},
+          resolvedAudioUrl,
           extractedText,
         );
       }

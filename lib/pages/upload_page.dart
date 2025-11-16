@@ -3,15 +3,19 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 import 'package:permission_handler/permission_handler.dart';
 import '../widgets/liquid_glass_card.dart';
 import '../services/file_service.dart';
 import '../services/api_service.dart';
 import '../services/audio_service.dart';
 import '../services/language_service.dart';
+import '../services/local_history_service.dart';
+import '../services/audio_download_service.dart';
 import '../models/models.dart';
 import 'voice_library_page.dart';
-import '../widgets/tts_progress_dialog.dart';
+import 'audio_player_page.dart';
 
 enum UploadInteractionMode {
   none,
@@ -23,7 +27,9 @@ enum UploadInteractionMode {
 
 /// 上传页面
 class UploadPage extends StatefulWidget {
-  const UploadPage({Key? key}) : super(key: key);
+  final String? initialText;
+
+  const UploadPage({Key? key, this.initialText}) : super(key: key);
 
   @override
   State<UploadPage> createState() => _UploadPageState();
@@ -34,13 +40,16 @@ class _UploadPageState extends State<UploadPage> {
   final ApiService _apiService = ApiService();
   final AudioService _audioService = AudioService();
   final LanguageService _languageService = LanguageService();
+  final LocalHistoryService _localHistoryService = LocalHistoryService();
+  final AudioDownloadService _downloadService = AudioDownloadService();
   final TextEditingController _urlController = TextEditingController();
   final ImagePicker _imagePicker = ImagePicker();
+  final ScrollController _textScrollController = ScrollController();
 
   File? _selectedFile;
   VoiceTypeModel? _selectedVoice;
   bool _isUploading = false;
-  ValueNotifier<int>? _progressNotifier;
+  double _generateProgress = 0.0; // 生成进度 0.0 - 1.0
   String? _extractedText;
   UploadInteractionMode _interactionMode = UploadInteractionMode.none;
   final TextEditingController _inlineUrlController =
@@ -51,13 +60,54 @@ class _UploadPageState extends State<UploadPage> {
   bool _showUrlCompleteButton = true;
   bool _showTextCompleteButton = true;
   bool _showPhotoCompleteButton = true;
+  // 文本预览可编辑控制器
+  final TextEditingController _previewTextController = TextEditingController();
+  int _playStartIndex = 0; // 文本播放起点（字符索引）
+  int _playEndIndex = 0; // 文本播放终点（字符索引，0表示到结尾）
 
   @override
   void initState() {
     super.initState();
     _inlineUrlController.addListener(_onUrlChanged);
     _inlineTextController.addListener(_onTextChanged);
+    // 只使用传入的文本，不加载缓存
+    if (widget.initialText != null && widget.initialText!.isNotEmpty) {
+      _extractedText = widget.initialText;
+      _previewTextController.text = widget.initialText!;
+    }
+    // 尝试加载上次选中的语音（如果有），否则尝试设置一个默认语音
+    _loadLastSelectedVoice();
   }
+
+  Future<void> _loadLastSelectedVoice() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getString('last_selected_voice');
+      if (saved != null && saved.isNotEmpty) {
+        final Map<String, dynamic> json = jsonDecode(saved);
+        setState(() {
+          _selectedVoice = VoiceTypeModel.fromJson(json);
+        });
+        return;
+      }
+
+      // 如果没有保存的选择，尝试从缓存的语音库取第一个作为默认
+      final cachedVoices = prefs.getString('voice_library_data');
+      if (cachedVoices != null && cachedVoices.isNotEmpty) {
+        final List<dynamic> arr = jsonDecode(cachedVoices);
+        if (arr.isNotEmpty) {
+          final first = VoiceTypeModel.fromJson(Map<String, dynamic>.from(arr.first));
+          setState(() {
+            _selectedVoice = first;
+          });
+        }
+      }
+    } catch (e) {
+      // 忽略加载错误，不阻塞 UI
+      print('Failed to load last selected voice: $e');
+    }
+  }
+
 
   @override
   void dispose() {
@@ -66,6 +116,8 @@ class _UploadPageState extends State<UploadPage> {
     _inlineUrlController.dispose();
     _inlineTextController.dispose();
     _urlController.dispose();
+    _textScrollController.dispose();
+    _previewTextController.dispose();
     super.dispose();
   }
 
@@ -101,6 +153,11 @@ class _UploadPageState extends State<UploadPage> {
         ? const Color(0xFFF1EEE3) // rgb(241, 238, 227)
         : const Color(0xFF191815);
 
+    // 保持 controller 与 _extractedText 同步（如果不同步且 _extractedText 有值）
+    if (_previewTextController.text != (_extractedText ?? '') && _extractedText != null && _extractedText!.isNotEmpty) {
+      _previewTextController.text = _extractedText!;
+    }
+
     return Scaffold(
       backgroundColor: backgroundColor,
       body: SafeArea(
@@ -129,8 +186,8 @@ class _UploadPageState extends State<UploadPage> {
               // 语音选择
               _buildVoiceSelection(),
               const SizedBox(height: 24),
-              // 提取的文本预览
-              if (_extractedText != null) _buildTextPreview(),
+              // 提取的文本预览（可滚动，超出渐隐）
+              // if (_extractedText != null) _buildTextPreview(),
               const SizedBox(height: 24),
               // 生成按钮
               _buildGenerateButton(),
@@ -143,53 +200,19 @@ class _UploadPageState extends State<UploadPage> {
 
   /// 基于 upload-structure.json 的上传选项卡片
   Widget _buildUploadOptionsCard(Color textColor) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? const Color(0xFF2A2F24) : const Color(0xFFE0F5DA);
-
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 300),
       child: SizedBox(
         key: ValueKey(_interactionMode),
         height: _cardHeight,
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: cardColor,
-            borderRadius: BorderRadius.circular(30),
+            child:  _buildTextPreview(),
           ),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              return ScrollConfiguration(
-                behavior: const ScrollBehavior().copyWith(overscroll: false),
-                child: SingleChildScrollView(
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      minHeight: constraints.maxHeight,
-                    ),
-                    child: _buildCardContent(textColor),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCardContent(Color textColor) {
-    switch (_interactionMode) {
-      case UploadInteractionMode.urlInput:
-        return _buildUrlInputContent(textColor);
-      case UploadInteractionMode.textInput:
-        return _buildTextInputContent(textColor);
-      case UploadInteractionMode.galleryPreview:
-        return _buildGalleryPreviewContent(textColor);
-      case UploadInteractionMode.filePreview:
-        return _buildFilePreviewContent(textColor);
-      case UploadInteractionMode.none:
-        return _buildDefaultOptionsContent(textColor);
-    }
+        );
+      // },
+    //       ),
+    //     ),
+    //   // ),
+    // );
   }
 
   Widget _buildDefaultOptionsContent(Color textColor) {
@@ -261,6 +284,21 @@ class _UploadPageState extends State<UploadPage> {
     );
   }
 
+  Widget _buildCardContent(Color textColor) {
+    switch (_interactionMode) {
+      case UploadInteractionMode.urlInput:
+        return _buildUrlInputContent(textColor);
+      case UploadInteractionMode.textInput:
+        return _buildTextInputContent(textColor);
+      case UploadInteractionMode.galleryPreview:
+        return _buildGalleryPreviewContent(textColor);
+      case UploadInteractionMode.filePreview:
+        return _buildFilePreviewContent(textColor);
+      case UploadInteractionMode.none:
+        return _buildDefaultOptionsContent(textColor);
+    }
+  }
+
   Widget _buildUrlInputContent(Color textColor) {
     return SingleChildScrollView(
       child: Column(
@@ -302,10 +340,21 @@ class _UploadPageState extends State<UploadPage> {
             Align(
               alignment: Alignment.centerRight,
               child: ElevatedButton.icon(
-                onPressed: () {
+                onPressed: () async {
+                  final entered = _inlineUrlController.text.trim();
+                  if (entered.isEmpty) {
+                    if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请输入网址')));
+                    return;
+                  }
+                  String normalized = entered;
+                  if (!normalized.startsWith('http://') && !normalized.startsWith('https://')) {
+                    normalized = 'https://$normalized';
+                  }
                   setState(() {
                     _showUrlCompleteButton = false;
+                    _interactionMode = UploadInteractionMode.none;
                   });
+                  await _submitUrl(normalized);
                 },
                 icon: const Icon(Icons.check),
                 label: const Text('完成'),
@@ -365,9 +414,15 @@ class _UploadPageState extends State<UploadPage> {
               alignment: Alignment.centerRight,
               child: ElevatedButton.icon(
                 onPressed: () {
+                  final entered = _inlineTextController.text.trim();
                   setState(() {
                     _showTextCompleteButton = false;
+                    _extractedText = entered;
+                    _interactionMode = UploadInteractionMode.none;
                   });
+                  if (mounted && entered.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请输入要转换的文本')));
+                  }
                 },
                 icon: const Icon(Icons.check),
                 label: const Text('完成'),
@@ -618,6 +673,7 @@ class _UploadPageState extends State<UploadPage> {
     setState(() {
       _galleryImages.removeAt(index);
       if (_galleryImages.isEmpty) {
+        _selectedFile = null;
         _interactionMode = UploadInteractionMode.none;
         _showPhotoCompleteButton = true;
       } else {
@@ -692,7 +748,7 @@ class _UploadPageState extends State<UploadPage> {
           _selectedFile = files.first;
         }
         _interactionMode = UploadInteractionMode.galleryPreview;
-        _extractedText = null;
+        _extractedText = '请输入编辑文本';
         // 添加图片后显示完成按钮
         _showPhotoCompleteButton = true;
       });
@@ -785,44 +841,165 @@ class _UploadPageState extends State<UploadPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Text Preview',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-        ),
-        const SizedBox(height: 12),
         LiquidGlassCard(
-          child: Text(
-            _extractedText!,
-            maxLines: 5,
-            overflow: TextOverflow.ellipsis,
+          child: SizedBox(
+            height: 300,
+            child: Column(
+              children: [
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: TextField(
+                      controller: _previewTextController,
+                      keyboardType: TextInputType.multiline,
+                      maxLines: null,
+                      expands: true,
+                      textAlignVertical: TextAlignVertical.top,
+                      decoration: const InputDecoration(
+                        border: InputBorder.none,
+                        hintText: '在此输入或编辑文本...',
+                      ),
+                      onChanged: (text) {
+                        setState(() {
+                          _extractedText = text;
+                        });
+                      },
+                    ),
+                  ),
+                ),
+                // 底部工具栏：设为起点、删除选中、插入文本、显示起点位置
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  child: Row(
+                    children: [
+                      OutlinedButton(
+                        onPressed: _setPlayStartFromSelection,
+                        child: const Text('设为起点'),
+                      ),
+                      const SizedBox(width: 8),
+                      OutlinedButton(
+                        onPressed: _deleteSelectionInPreview,
+                        child: const Text('删除选中'),
+                      ),
+                      const SizedBox(width: 8),
+                      OutlinedButton(
+                        onPressed: _insertTextAtCursor,
+                        child: const Text('插入文本'),
+                      ),
+                      const Spacer(),
+                      Text('起点: ${_playStartIndex}'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ],
     );
   }
 
+
+  void _setPlayStartFromSelection() {
+    final sel = _previewTextController.selection;
+    if (sel.start < 0) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请先选择或把光标放到想设置为起点的位置')));
+      return;
+    }
+    setState(() {
+      _playStartIndex = sel.start;
+    });
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已设置播放起点')));
+  }
+
+  void _deleteSelectionInPreview() {
+    final sel = _previewTextController.selection;
+    if (sel.start < 0 || sel.start == sel.end) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请先选择要删除的文本')));
+      return;
+    }
+    final text = _previewTextController.text;
+    final newText = text.replaceRange(sel.start, sel.end, '');
+    setState(() {
+      _previewTextController.text = newText;
+      _previewTextController.selection = TextSelection.collapsed(offset: sel.start);
+    });
+  }
+
+  Future<void> _insertTextAtCursor() async {
+    final toInsert = await showDialog<String?>(
+      context: context,
+      builder: (context) {
+        final controller = TextEditingController();
+        return AlertDialog(
+          title: const Text('插入文本'),
+          content: TextField(controller: controller, autofocus: true),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, null), child: const Text('取消')),
+            TextButton(onPressed: () => Navigator.pop(context, controller.text), child: const Text('插入')),
+          ],
+        );
+      },
+    );
+    if (toInsert == null || toInsert.isEmpty) return;
+    final sel = _previewTextController.selection;
+    final pos = sel.start >= 0 ? sel.start : _previewTextController.text.length;
+    final text = _previewTextController.text;
+    final newText = text.replaceRange(pos, pos, toInsert);
+    setState(() {
+      _previewTextController.text = newText;
+      _previewTextController.selection = TextSelection.collapsed(offset: pos + toInsert.length);
+    });
+  }
+
   Widget _buildGenerateButton() {
-    final canGenerate = !_isUploading && _selectedVoice != null && (_selectedFile != null || _extractedText != null);
-    return ElevatedButton(
-      onPressed: canGenerate ? _generateAudio : null,
-      style: ElevatedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-      ),
-      child: _isUploading
-          ? const SizedBox(
-              height: 20,
-              width: 20,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          : const Text(
-              'Generate Audio',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+    final canGenerate = !_isUploading && _selectedVoice != null && (_selectedFile != null || (_extractedText != null && _extractedText!.isNotEmpty));
+    final text = _previewTextController.text;
+    final hasText = text.trim().isNotEmpty;
+    
+    return Stack(
+      children: [
+        ElevatedButton(
+          onPressed: canGenerate && hasText ? _generateAudio : null,
+          style: ElevatedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
             ),
+            backgroundColor: canGenerate && hasText ? Colors.green : Colors.grey,
+            disabledBackgroundColor: Colors.grey,
+          ),
+          child: SizedBox(
+            width: double.infinity,
+            child: Center(
+              child: Text(
+                _isUploading ? 'Generating... ${(_generateProgress * 100).toStringAsFixed(0)}%' : 'Generate Audio',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+        ),
+        // 绿色进度填充
+        if (_isUploading && _generateProgress > 0)
+          Positioned.fill(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: FractionallySizedBox(
+                  widthFactor: _generateProgress,
+                  child: Container(
+                    color: Colors.green.withOpacity(0.3),
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 
@@ -922,7 +1099,7 @@ class _UploadPageState extends State<UploadPage> {
 
         setState(() {
           _selectedFile = file;
-          _extractedText = null;
+          _extractedText = '请输入编辑文本';
           _interactionMode = UploadInteractionMode.none;
           _galleryImages.clear();
         });
@@ -990,35 +1167,32 @@ class _UploadPageState extends State<UploadPage> {
     }
   }
 
-  Future<void> _submitUrl() async {
-    if (_urlController.text.isEmpty) return;
+  Future<void> _submitUrl([String? url]) async {
+    final target = (url ?? _urlController.text).trim();
+    if (target.isEmpty) return;
 
     setState(() {
       _isUploading = true;
     });
 
     try {
-      final result = await _apiService.submitUrl(url: _urlController.text);
+      final result = await _apiService.submitUrl(url: target);
       setState(() {
         _extractedText = result['text'];
       });
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {
-      setState(() {
-        _isUploading = false;
-      });
+      if (mounted) setState(() { _isUploading = false; });
     }
   }
 
   Future<void> _generateAudio() async {
-    print('in _generateAudio');
     
     if (_selectedVoice == null) return;
     setState(() {
       _isUploading = true;
+      _generateProgress = 0.0;
     });
 
     // 如果存在选中文件，统一交给服务器处理：先上传，拿到 file_id 后把 file_id 一并传给 generateAudio
@@ -1031,8 +1205,17 @@ class _UploadPageState extends State<UploadPage> {
           fileIdToSend = int.tryParse(uploadResp['file_id'].toString());
         }
         // 如果上传接口直接返回 text（短文本），也可用作优先文本
-        if ((_extractedText == null || _extractedText!.isEmpty) && uploadResp['text'] != null) {
-          _extractedText = uploadResp['text'];
+        if (uploadResp['text'] != null) {
+          final txt = uploadResp['text'].toString();
+          if (txt.trim().isEmpty) {
+            // OCR 没有识别到文字，提示用户并中断流程
+            if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请检查图片内是否有文字')));
+            setState(() { _isUploading = false; });
+            return;
+          }
+          if ((_extractedText == null || _extractedText!.isEmpty)) {
+            _extractedText = txt;
+          }
         }
       } catch (e) {
         if (mounted) {
@@ -1056,100 +1239,119 @@ class _UploadPageState extends State<UploadPage> {
       return;
     }
     try {
+      // 根据指南.md 8.13规范，使用新字段结构
+      final voice = _selectedVoice!;
+      final provider = voice.provider ?? 'azure';
+      final voiceId = voice.voiceId; // 使用 voiceId 字段
+      final model = voice.model; // 使用 model 字段
+      String? voiceTypeParam;
+      String? voiceIdParam;
+      String? modelParam;
+
+      if (provider == 'minimax') {
+        // Minimax 使用 voiceId 和 model
+        voiceIdParam = voiceId;
+        modelParam = model;
+      } else {
+        // Azure/Google 使用 voiceType（即 voiceId）
+        voiceTypeParam = voiceId;
+      }
+      
       final genResp = await _apiService.generateAudio(
         text: _extractedText ?? '',
-        voiceType: _selectedVoice!.id,
+        provider: provider,
+        voiceType: voiceTypeParam,
+        voiceId: voiceIdParam,
+        model: modelParam,
         fileId: fileIdToSend,
       );
 
-      // 处理生成响应：如果返回已完成并包含 audio_url，则直接播放；
-      // 如果返回 taskId（异步），开始轮询 /api/task/:taskId
-        // 兼容不同后端响应结构
-        final bool success = genResp['success'] == true || genResp['status'] == 'completed' || genResp['status'] == 200;
-
-        if (genResp['status'] == 'completed' && genResp['audio_url'] != null) {
-          final audioUrl = genResp['audio_url'];
-          await _audioService.play(audioUrl);
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Audio ready and playing')));
-        } else if (genResp['taskId'] != null) {
-          final String taskId = genResp['taskId'].toString();
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Task submitted: $taskId')));
-
-          // 显示进度对话框
-          _progressNotifier = ValueNotifier<int>(0);
-          if (mounted) {
-            showDialog(
-              context: context,
-              barrierDismissible: false,
-              builder: (context) => TtsProgressDialog(
-                progressNotifier: _progressNotifier!,
-              ),
-            );
-          }
-
-          // 开始轮询
-          int attempts = 0;
-          const maxAttempts = 180; // 最多轮询 6 分钟
-          const interval = Duration(seconds: 2);
-
-          while (attempts < maxAttempts) {
-            await Future.delayed(interval);
-            attempts += 1;
-            try {
-              final statusResp = await _apiService.getTaskStatus(taskId);
-              final data = statusResp['data'] ?? statusResp;
-              final st = (data != null && data['status'] != null) ? data['status'].toString() : '';
-              final progress = data != null && data['progress'] != null ? data['progress'] : null;
-              final message = data != null && data['message'] != null ? data['message'] : null;
-
-              if (mounted && _progressNotifier != null && progress != null) {
-                _progressNotifier!.value = (progress as num).toInt();
-              }
-
-              if (st == 'completed' || st == 'done') {
-                // 关闭进度对话框
-                if (mounted) {
-                  try {
-                    Navigator.of(context, rootNavigator: true).pop();
-                  } catch (_) {}
-                }
-                _progressNotifier = null;
-
-                final audioUrl = data['result'] != null ? data['result']['audio_url'] : data['audio_url'] ?? (data['result'] != null ? data['result']['audio_url'] : null);
-                final resolvedUrl = audioUrl ?? (data['result'] != null ? data['result']['audio_url'] : null);
-                if (resolvedUrl != null) {
-                  await _audioService.play(resolvedUrl);
-                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Audio ready and playing')));
-                } else {
-                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Task completed but audio URL missing')));
-                }
-                break;
-              } else if (st == 'failed') {
-                // 关闭进度对话框
-                if (mounted) {
-                  try {
-                    Navigator.of(context, rootNavigator: true).pop();
-                  } catch (_) {}
-                }
-                _progressNotifier = null;
-                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('TTS failed: ${message ?? ''}')));
-                break;
-              }
-            } catch (e) {
-              // 忽略单次轮询的错误，继续重试
-              print('Polling task error: $e');
-            }
-          }
-        } else if (genResp['audio_url'] != null) {
-          // 某些实现直接返回 audio_url
-          final audioUrl = genResp['audio_url'];
-          await _audioService.play(audioUrl);
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Audio ready and playing')));
-        } else if (!success) {
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Generate failed: ${genResp['error'] ?? genResp}')));
-        } else {
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Generation request submitted')));
+      // 统一使用轮询方式：检查是否有 taskId
+      if (genResp['taskId'] == null) {
+        // 如果没有 taskId，说明请求失败
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Generate failed: ${genResp['error'] ?? 'No taskId returned'}')));
         }
+        return;
+      }
+
+      final String taskId = genResp['taskId'].toString();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Task submitted: $taskId'), duration: const Duration(seconds: 2)),
+        );
+      }
+
+      // 开始轮询任务状态
+      int attempts = 0;
+      const maxAttempts = 180; // 最多轮询 6 分钟
+      const interval = Duration(seconds: 2);
+      bool taskCompleted = false;
+
+      while (attempts < maxAttempts && !taskCompleted) {
+        await Future.delayed(interval);
+        attempts += 1;
+        
+        try {
+          final statusResp = await _apiService.getTaskStatus(taskId);
+          final data = statusResp['data'] ?? statusResp;
+          final st = (data != null && data['status'] != null) ? data['status'].toString() : '';
+          final progress = data != null && data['progress'] != null ? data['progress'] : null;
+          final message = data != null && data['message'] != null ? data['message'] : null;
+
+          // 更新进度
+          if (mounted && progress != null) {
+            setState(() {
+              _generateProgress = (progress as num).toDouble() / 100.0;
+            });
+          }
+
+          // 检查任务状态
+          if (st == 'completed' || st == 'done') {
+            // 任务完成，提取音频URL
+            final audioUrl = data['result'] != null && data['result']['audio_url'] != null
+                ? data['result']['audio_url'].toString()
+                : (data['audio_url'] != null ? data['audio_url'].toString() : null);
+            
+            if (audioUrl != null && audioUrl.isNotEmpty) {
+              // 下载音频、保存历史、跳转页面
+              await _downloadAndPlayAudio(audioUrl);
+              taskCompleted = true;
+            } else {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Task completed but audio URL missing')),
+                );
+              }
+              taskCompleted = true;
+            }
+            break;
+          } else if (st == 'failed') {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('TTS failed: ${message ?? 'Unknown error'}')),
+              );
+            }
+            taskCompleted = true;
+            break;
+          }
+        } catch (e) {
+          // 忽略单次轮询的错误，继续重试
+          print('Polling task error: $e');
+          // 如果页面已销毁，停止轮询
+          if (!mounted) {
+            break;
+          }
+        }
+      }
+
+      // 如果轮询超时
+      if (!taskCompleted && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Task timeout, please try again')),
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1160,6 +1362,88 @@ class _UploadPageState extends State<UploadPage> {
       if (mounted) {
         setState(() {
           _isUploading = false;
+          _generateProgress = 0.0;
+        });
+      }
+    }
+  }
+
+  /// 下载音频和 titles 文件，然后播放
+  /// [audioUrl] 服务器音频URL
+  Future<void> _downloadAndPlayAudio(String audioUrl) async {
+    try {
+      if (!mounted) return;
+      
+      setState(() {
+        _generateProgress = 0.8; // 开始下载，进度设为80%
+      });
+
+      // 下载 mp3 文件
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Downloading audio...'), duration: Duration(seconds: 1)),
+        );
+      }
+
+      final localAudioPath = await _downloadService.downloadAudio(
+        audioUrl,
+        onProgress: (progress) {
+          if (mounted) {
+            setState(() {
+              // 下载进度：80% - 95%
+              _generateProgress = 0.8 + (progress * 0.15);
+            });
+          }
+        },
+      );
+
+      // 下载 titles 文件（如果存在）
+      if (mounted) {
+        setState(() {
+          _generateProgress = 0.95; // titles 下载开始
+        });
+      }
+
+      await _downloadService.downloadTitles(audioUrl);
+
+      if (mounted) {
+        setState(() {
+          _generateProgress = 1.0; // 下载完成
+        });
+      }
+      print("baocun");
+      // 保存到本地历史记录（使用本地文件路径）
+      final history = await _localHistoryService.saveHistory(
+        audioUrl: localAudioPath, // 使用本地路径
+        voiceType: _selectedVoice!.voiceId ?? _selectedVoice!.name,
+        resultText: _extractedText,
+        fileName: _selectedFile?.path.split('/').last,
+      );
+      print("bofang");
+      // 播放本地文件
+      await _audioService.play(localAudioPath);
+
+      // 标记需要刷新首页历史并跳转到播放页
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool('history_needs_refresh', true);
+      } catch (_) {}
+
+      if (mounted) {
+        print("tiaozhuan");
+        await _openPlayerForUrl(history);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Audio ready and playing')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Download error: $e')),
+        );
+        setState(() {
+          _isUploading = false;
+          _generateProgress = 0.0;
         });
       }
     }
@@ -1177,6 +1461,28 @@ class _UploadPageState extends State<UploadPage> {
       setState(() {
         _selectedVoice = result;
       });
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('last_selected_voice', jsonEncode(result.toJson()));
+      } catch (e) {
+        print('Failed to persist last selected voice: $e');
+      }
     }
+  }
+
+  /// 在播放后跳转到 AudioPlayerPage，并设置首页刷新标记
+  Future<void> _openPlayerForUrl(HistoryModel history) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('history_needs_refresh', true);
+    } catch (_) {}
+
+    // 回到根页面（HomePage），再 push 播放页，这样返回时 HomePage 可以刷新
+    if (!mounted) return;
+    Navigator.of(context).popUntil((route) => route.isFirst);
+
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (context) => AudioPlayerPage(history: history)),
+    );
   }
 }

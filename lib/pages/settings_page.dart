@@ -3,6 +3,7 @@ import '../widgets/liquid_glass_card.dart';
 import '../config/api_keys.dart';
 import '../services/localization_service.dart';
 import '../services/api_service.dart';
+import 'products_page.dart';
 
 /// 设置页面
 class SettingsPage extends StatefulWidget {
@@ -723,9 +724,11 @@ class _SettingsPageState extends State<SettingsPage> {
                         width: double.infinity,
                         child: ElevatedButton(
                           onPressed: () {
-                            // TODO: 实现升级功能
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('升级功能即将推出')),
+                            // 跳转到商品页
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) => const ProductsPage(),
+                              ),
                             );
                           },
                           style: ElevatedButton.styleFrom(

@@ -44,10 +44,14 @@ class _VoiceLibraryPageState extends State<VoiceLibraryPage> {
   // 动态语言标签（从云端声线中提取）
   Map<String, String> _languageLabels = Map.from(_baseLanguageLabels);
   
-  // 语言代码到显示名称的映射
+  // 语言代码到显示名称的映射（支持基础语言代码和完整语言代码）
   static const Map<String, String> _languageCodeToName = {
     'zh': '中文',
+    'zh-cn': '中文',
+    'zh-tw': '繁體中文',
     'en': 'English',
+    'en-us': 'English (US)',
+    'en-gb': 'English (UK)',
     'ja': '日本語',
     'ko': '한국어',
     'fr': 'Français',
@@ -232,16 +236,27 @@ class _VoiceLibraryPageState extends State<VoiceLibraryPage> {
     }
   }
 
+  // 从语言代码中提取基础语言代码（如 zh-CN -> zh）
+  String _extractBaseLanguage(String language) {
+    if (language.isEmpty) return language;
+    // 提取语言代码的前缀部分（如 zh-CN -> zh, en-US -> en）
+    final parts = language.split('-');
+    return parts[0].toLowerCase();
+  }
+
   // 从声线列表中提取语言代码并更新语言标签
   void _updateLanguageLabels(List<VoiceTypeModel> voices) {
-    // 提取所有唯一的语言代码
-    final Set<String> languages = voices.map((v) => v.language).toSet();
+    // 提取所有唯一的语言代码（使用基础语言代码，如 zh-CN -> zh）
+    final Set<String> baseLanguages = voices
+        .map((v) => _extractBaseLanguage(v.language))
+        .where((lang) => lang.isNotEmpty)
+        .toSet();
     
     // 更新语言标签映射
     final updatedLabels = Map<String, String>.from(_baseLanguageLabels);
     
-    // 为每个语言代码添加标签
-    for (final lang in languages) {
+    // 为每个基础语言代码添加标签
+    for (final lang in baseLanguages) {
       if (lang.isNotEmpty && !updatedLabels.containsKey(lang)) {
         // 使用映射表获取显示名称，如果没有则使用语言代码本身
         final displayName = _languageCodeToName[lang] ?? lang.toUpperCase();
@@ -558,7 +573,7 @@ class _VoiceLibraryPageState extends State<VoiceLibraryPage> {
         // 使用 RepaintBoundary 减少重绘
         return RepaintBoundary(
           child: VoiceCardWidget(
-            key: ValueKey(voice.id), // 使用稳定的 key
+            key: ValueKey('${voice.id}-${voice.model ?? ''}'), // 使用稳定的 key（包含id和model以确保唯一性）
             voice: voice,
             isSelected: false, // 移除选中状态，因为选中即确认
             onTap: () => _onVoiceSelected(voice),

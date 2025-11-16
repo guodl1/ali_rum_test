@@ -46,16 +46,10 @@ class BottomNavBar extends StatelessWidget {
               activeColor: activeColor,
               inactiveColor: inactiveColor,
             ),
-            _buildAddButton(
-              index: 1,
-              isActive: currentIndex == 1,
-              activeColor: activeColor,
-              inactiveColor: inactiveColor,
-            ),
             _buildNavItem(
               icon: Icons.person,
-              index: 2,
-              isActive: currentIndex == 2,
+              index: 1,
+              isActive: currentIndex == 1,
               activeColor: activeColor,
               inactiveColor: inactiveColor,
             ),

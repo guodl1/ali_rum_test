@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:convert';
+import 'dart:io';
+import 'package:http/http.dart' as http;
 import '../services/audio_service.dart';
 import '../services/localization_service.dart';
+import '../services/api_service.dart';
 import '../models/models.dart';
+import '../models/titles_model.dart';
 import 'package:audioplayers/audioplayers.dart';
 
 /// 音频播放页面
@@ -21,6 +26,7 @@ class AudioPlayerPage extends StatefulWidget {
 
 class _AudioPlayerPageState extends State<AudioPlayerPage> with SingleTickerProviderStateMixin {
   final AudioService _audioService = AudioService();
+  final ApiService _apiService = ApiService();
   
   Duration _currentPosition = Duration.zero;
   Duration _totalDuration = Duration.zero;
@@ -30,16 +36,103 @@ class _AudioPlayerPageState extends State<AudioPlayerPage> with SingleTickerProv
   // 用于文本滚动
   final ScrollController _scrollController = ScrollController();
   AnimationController? _textAnimationController;
+  
+  // Titles 数据
+  List<TitleSegment> _titlesSegments = [];
+  int? _currentSegmentIndex; // 当前正在播放的段落索引
+  bool _titlesLoaded = false;
 
   @override
   void initState() {
     super.initState();
+    _loadTitles();
     _initializePlayer();
     _setupListeners();
     _textAnimationController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 30),
     );
+  }
+
+  /// 加载 titles 文件
+  Future<void> _loadTitles() async {
+    try {
+      // 根据 audio_url 推断 titles_url
+      final audioUrl = widget.history.audioUrl;
+      if (audioUrl.isEmpty) return;
+      
+      String titlesJson;
+      
+      // 检查是否是本地文件路径
+      if (!audioUrl.startsWith('http://') && !audioUrl.startsWith('https://')) {
+        // 本地文件路径，尝试从本地文件系统读取
+        try {
+          final titlesPath = audioUrl.replaceAll(RegExp(r'\.(mp3|wav|m4a|ogg|aac|flac)$'), '.titles');
+          final titlesFile = File(titlesPath);
+          
+          if (await titlesFile.exists()) {
+            titlesJson = await titlesFile.readAsString();
+          } else {
+            // 本地文件不存在，使用普通文本显示
+            if (mounted) {
+              setState(() {
+                _titlesLoaded = true;
+              });
+            }
+            return;
+          }
+        } catch (e) {
+          // 读取本地文件失败，使用普通文本显示
+          print('Failed to read local titles file: $e');
+          if (mounted) {
+            setState(() {
+              _titlesLoaded = true;
+            });
+          }
+          return;
+        }
+      } else {
+        // 服务器 URL，从服务器下载
+        String titlesUrl = audioUrl.replaceAll(RegExp(r'\.(mp3|wav|m4a|ogg|aac|flac)$'), '.titles');
+        
+        final baseUrl = _apiService.baseUrl;
+        final fullUrl = titlesUrl.startsWith('http') ? titlesUrl : '$baseUrl$titlesUrl';
+        
+        final response = await http.get(Uri.parse(fullUrl)).timeout(
+          const Duration(seconds: 5),
+        );
+
+        if (response.statusCode == 200) {
+          titlesJson = utf8.decode(response.bodyBytes);
+        } else {
+          // titles 文件不存在，使用普通文本显示
+          if (mounted) {
+            setState(() {
+              _titlesLoaded = true;
+            });
+          }
+          return;
+        }
+      }
+      
+      // 解析 titles JSON
+      final segments = TitlesParser.parseTitles(titlesJson);
+      
+      if (mounted) {
+        setState(() {
+          _titlesSegments = segments;
+          _titlesLoaded = true;
+        });
+      }
+    } catch (e) {
+      // titles 文件不存在或加载失败，使用普通文本显示
+      print('Failed to load titles file: $e');
+      if (mounted) {
+        setState(() {
+          _titlesLoaded = true;
+        });
+      }
+    }
   }
 
   Future<void> _initializePlayer() async {
@@ -72,7 +165,11 @@ class _AudioPlayerPageState extends State<AudioPlayerPage> with SingleTickerProv
 
     _audioService.positionStream.listen((position) {
       if (mounted) {
-        setState(() => _currentPosition = position);
+        setState(() {
+          _currentPosition = position;
+          // 根据当前播放位置更新高亮的段落
+          _updateCurrentSegment(position);
+        });
       }
     });
 
@@ -139,8 +236,15 @@ class _AudioPlayerPageState extends State<AudioPlayerPage> with SingleTickerProv
                 child: _buildContentArea(foregroundColor),
               ),
               
-              // Footer - 控制区域
+              // 进度条和时间显示
+              _buildProgressBar(foregroundColor, accentColor),
+              
+              const SizedBox(height: 16),
+              
+              // Footer - 控制区域（Nav）
               _buildFooter(foregroundColor, accentColor, localizations),
+              
+              const SizedBox(height: 16),
             ],
           ),
         ),
@@ -148,47 +252,69 @@ class _AudioPlayerPageState extends State<AudioPlayerPage> with SingleTickerProv
     );
   }
 
-  /// 构建顶部标题栏
+  /// 构建顶部标题栏（参考 Header.svg 和 header-structure.json）
   Widget _buildHeader(Color foregroundColor, Color accentColor, AppLocalizations localizations) {
+    // 根据 header-structure.json: 宽度 343, 高度 48, gap 91
+    // 左侧：48x48 圆形按钮（返回）
+    // 中间：157x22 章节信息（"1 Chapter - Loomings"格式，gap 6）
+    // 右侧：48x48 圆形按钮（更多选项）
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      width: 343,
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // 返回按钮
+          // 左侧返回按钮 - group-1 (48x48)
           _buildCircleButton(
             icon: Icons.arrow_back,
-            color: accentColor,
-            foregroundColor: foregroundColor,
+            color: const Color(0xFF191815), // rgb(25, 24, 21)
+            foregroundColor: const Color(0xFFF1EEE3), // rgb(241, 238, 227)
             onTap: () => Navigator.of(context).pop(),
           ),
           
-          // 章节信息
+          // 中间章节信息 - frame-34104 (gap 6)
           Expanded(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
+                  // "1 Chapter -" (Arial, 16px, 400)
                   Text(
-                    widget.history.fileName ?? 'Audio',
+                    '1 Chapter -',
                     style: TextStyle(
+                      fontFamily: 'Arial',
                       fontSize: 16,
                       fontWeight: FontWeight.w400,
-                      color: accentColor,
+                      color: foregroundColor,
                     ),
-                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(width: 6), // gap 6
+                  // 章节名称 (Albra, 16px, 500)
+                  Flexible(
+                    child: Text(
+                      widget.history.fileName ?? 'Audio',
+                      style: TextStyle(
+                        fontFamily: 'Albra',
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: foregroundColor,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.left,
+                    ),
                   ),
                 ],
               ),
             ),
           ),
           
-          // 更多选项按钮
+          // 右侧更多选项按钮 - group-2 (48x48)
           _buildCircleButton(
             icon: Icons.more_horiz,
-            color: accentColor,
-            foregroundColor: foregroundColor,
+            color: const Color(0xFF191815), // rgb(25, 24, 21)
+            foregroundColor: const Color(0xFFF1EEE3), // rgb(241, 238, 227)
             onTap: () => _showMoreOptions(localizations),
           ),
         ],
@@ -221,7 +347,7 @@ class _AudioPlayerPageState extends State<AudioPlayerPage> with SingleTickerProv
     );
   }
 
-  /// 构建文本显示区域
+  /// 构建文本显示区域（支持 titles 高亮）
   Widget _buildContentArea(Color foregroundColor) {
     if (_isLoading) {
       return Center(
@@ -231,9 +357,20 @@ class _AudioPlayerPageState extends State<AudioPlayerPage> with SingleTickerProv
       );
     }
 
-    // 显示文件内容或占位文本
-    final displayText = widget.history.resultText ?? _getPlaceholderText();
+    // 如果有 titles 数据，使用段落高亮显示
+    if (_titlesSegments.isNotEmpty) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: SingleChildScrollView(
+          controller: _scrollController,
+          physics: const BouncingScrollPhysics(),
+          child: _buildTitlesContent(foregroundColor),
+        ),
+      );
+    }
 
+    // 普通文本显示
+    final displayText = _getDisplayText();
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: SingleChildScrollView(
@@ -253,147 +390,212 @@ class _AudioPlayerPageState extends State<AudioPlayerPage> with SingleTickerProv
     );
   }
 
+  /// 构建带高亮的 titles 内容
+  Widget _buildTitlesContent(Color foregroundColor) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: _titlesSegments.asMap().entries.map((entry) {
+        final index = entry.key;
+        final segment = entry.value;
+        final isCurrent = index == _currentSegmentIndex;
+        
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Text(
+            segment.text,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w400,
+              color: isCurrent ? Colors.red : foregroundColor,
+              height: 1.8,
+              letterSpacing: 0.3,
+              backgroundColor: isCurrent ? Colors.red.withOpacity(0.1) : Colors.transparent,
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
   String _getPlaceholderText() {
     return 'Call me Ishmael. Some years ago--never mind how long precisely--having little or no money in my purse, and nothing particular to interest me on shore, I thought I would sail about a little and see the watery part of the world...';
   }
 
-  /// 构建底部控制区域
+  /// 滚动到当前播放的段落
+  void _scrollToCurrentSegment() {
+    if (_currentSegmentIndex == null || _titlesSegments.isEmpty) return;
+    if (!_scrollController.hasClients) return;
+
+    // 根据段落索引计算滚动位置
+    // 每个段落大约占用一定高度（考虑 padding 和 line height）
+    const double segmentHeight = 50.0; // 估算每个段落的高度（包括 padding 和 line height）
+    final scrollOffset = _currentSegmentIndex! * segmentHeight;
+    
+    if (scrollOffset <= _scrollController.position.maxScrollExtent) {
+      _scrollController.animateTo(
+        scrollOffset,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
+  }
+
+  /// 根据当前播放位置更新高亮的段落
+  void _updateCurrentSegment(Duration position) {
+    if (_titlesSegments.isEmpty) return;
+    
+    final positionMs = position.inMilliseconds.toDouble();
+    int? newIndex;
+    
+    for (int i = 0; i < _titlesSegments.length; i++) {
+      final segment = _titlesSegments[i];
+      if (positionMs >= segment.timeBegin && positionMs <= segment.timeEnd) {
+        newIndex = i;
+        break;
+      }
+    }
+    
+    if (newIndex != _currentSegmentIndex) {
+      setState(() {
+        _currentSegmentIndex = newIndex;
+      });
+      
+      // 如果段落改变，自动滚动到当前段落
+      if (newIndex != null) {
+        _scrollToCurrentSegment();
+      }
+    }
+  }
+
+  /// 获取显示的文本
+  String _getDisplayText() {
+    if (_titlesSegments.isNotEmpty) {
+      return TitlesParser.getFullText(_titlesSegments);
+    }
+    return widget.history.resultText ?? _getPlaceholderText();
+  }
+
+  /// 构建底部控制区域（参考 Nav.svg 和 nav-structure.json）
   Widget _buildFooter(Color foregroundColor, Color accentColor, AppLocalizations localizations) {
+    // 根据 Nav.svg: 宽度 343, 高度 81, 圆角 40.5
+    // 左侧：后退按钮（卡带图标样式）
+    // 中间：播放按钮（红色圆形，带白色播放图标）
+    // 右侧：前进按钮和设置按钮
     return Container(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+      width: 343,
+      height: 81,
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF191815), // rgb(25, 24, 21)
+        borderRadius: BorderRadius.circular(40.5),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // 进度条
-          _buildProgressBar(foregroundColor, accentColor),
+          // 左侧：后退15秒按钮（卡带图标样式，参考 Nav.svg）
+          _buildNavButton(
+            icon: Icons.replay_10,
+            onTap: () {
+              final newPosition = _currentPosition - const Duration(seconds: 15);
+              _audioService.seek(newPosition < Duration.zero ? Duration.zero : newPosition);
+            },
+            color: const Color(0xFFA5A296), // stroke color #A5A296
+          ),
           
-          const SizedBox(height: 24),
+          // 中间：播放/暂停按钮（红色圆形，参考 Nav.svg）
+          GestureDetector(
+            onTap: () async {
+              if (_playerState == PlayerState.playing) {
+                await _audioService.pause();
+              } else {
+                await _audioService.play(
+                  widget.history.audioUrl,
+                  historyId: widget.history.id,
+                );
+              }
+            },
+            child: Container(
+              width: 53,
+              height: 53,
+              decoration: const BoxDecoration(
+                color: Color(0xFFE06065), // rgb(224, 96, 101) - 红色
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                _playerState == PlayerState.playing ? Icons.pause : Icons.play_arrow,
+                color: Colors.white,
+                size: 24,
+              ),
+            ),
+          ),
           
-          // 播放控制按钮
-          _buildPlayControls(foregroundColor, accentColor, localizations),
-          
-          const SizedBox(height: 16),
+          // 右侧：快进15秒按钮（参考 Nav.svg）
+          _buildNavButton(
+            icon: Icons.forward_10,
+            onTap: () {
+              final newPosition = _currentPosition + const Duration(seconds: 15);
+              _audioService.seek(newPosition > _totalDuration ? _totalDuration : newPosition);
+            },
+            color: const Color(0xFFA5A296),
+          ),
         ],
       ),
     );
   }
 
-  /// 构建进度条
-  Widget _buildProgressBar(Color foregroundColor, Color accentColor) {
-    return Column(
-      children: [
-        // 进度条
-        SliderTheme(
-          data: SliderThemeData(
-            trackHeight: 4,
-            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-            overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
-            activeTrackColor: accentColor,
-            inactiveTrackColor: accentColor.withOpacity(0.3),
-            thumbColor: accentColor,
-            overlayColor: accentColor.withOpacity(0.2),
-          ),
-          child: Slider(
-            value: _totalDuration.inMilliseconds > 0
-                ? _currentPosition.inMilliseconds / _totalDuration.inMilliseconds
-                : 0.0,
-            onChanged: (value) {
-              final position = Duration(
-                milliseconds: (value * _totalDuration.inMilliseconds).round(),
-              );
-              _audioService.seek(position);
-            },
-          ),
+  /// 构建导航按钮（参考 Nav.svg 中的按钮样式）
+  Widget _buildNavButton({
+    required IconData icon,
+    required VoidCallback onTap,
+    required Color color,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 42,
+        height: 42,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: color, width: 1.5),
         ),
-        
-        // 时间显示
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                _formatDuration(_currentPosition),
-                style: TextStyle(
-                  fontSize: 12,
-                  color: foregroundColor.withOpacity(0.7),
-                ),
-              ),
-              Text(
-                _formatDuration(_totalDuration),
-                style: TextStyle(
-                  fontSize: 12,
-                  color: foregroundColor.withOpacity(0.7),
-                ),
-              ),
-            ],
-          ),
+        child: Icon(
+          icon,
+          color: color,
+          size: 20,
         ),
-      ],
+      ),
     );
   }
 
-  /// 构建播放控制按钮
-  Widget _buildPlayControls(Color foregroundColor, Color accentColor, AppLocalizations localizations) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        // 后退15秒
-        IconButton(
-          onPressed: () {
-            final newPosition = _currentPosition - const Duration(seconds: 15);
-            _audioService.seek(newPosition < Duration.zero ? Duration.zero : newPosition);
-          },
-          icon: Icon(Icons.replay_outlined, color: accentColor, size: 32),
-        ),
-        
-        const SizedBox(width: 32),
-        
-        // 播放/暂停按钮
-        GestureDetector(
-          onTap: () async {
-            if (_playerState == PlayerState.playing) {
-              await _audioService.pause();
-            } else {
-              await _audioService.play(
-                widget.history.audioUrl,
-                historyId: widget.history.id,
-              );
-            }
-          },
-          child: Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              color: accentColor,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: accentColor.withOpacity(0.3),
-                  blurRadius: 16,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Icon(
-              _playerState == PlayerState.playing ? Icons.pause : Icons.play_arrow,
-              color: foregroundColor,
-              size: 36,
+  /// 构建进度条（参考 Nav.svg 中的时间显示）
+  Widget _buildProgressBar(Color foregroundColor, Color accentColor) {
+    // Nav.svg 中显示了时间格式 "10:25 / 43:17"
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // 当前时间 - 参考 SVG 中的样式（F1EEE3 颜色）
+          Text(
+            _formatDuration(_currentPosition),
+            style: TextStyle(
+              fontSize: 16,
+              color: const Color(0xFFF1EEE3), // rgb(241, 238, 227)
+              fontWeight: FontWeight.w400,
             ),
           ),
-        ),
-        
-        const SizedBox(width: 32),
-        
-        // 快进15秒
-        IconButton(
-          onPressed: () {
-            final newPosition = _currentPosition + const Duration(seconds: 15);
-            _audioService.seek(newPosition > _totalDuration ? _totalDuration : newPosition);
-          },
-          icon: Icon(Icons.forward_outlined, color: accentColor, size: 32),
-        ),
-      ],
+          // 分隔符和总时长
+          Text(
+            ' / ${_formatDuration(_totalDuration)}',
+            style: TextStyle(
+              fontSize: 16,
+              color: const Color(0xFFF1EEE3).withOpacity(0.7),
+              fontWeight: FontWeight.w400,
+            ),
+          ),
+        ],
+      ),
     );
   }
 

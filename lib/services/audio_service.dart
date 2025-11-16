@@ -2,14 +2,17 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 import 'dart:convert';
+import 'audio_download_service.dart';
 
 /// 音频服务类
 /// 管理音频播放、暂停、停止等功能，支持断点续播
+/// 音频文件会先下载到本地，然后从本地播放
 class AudioService {
   static final AudioService _instance = AudioService._internal();
   factory AudioService() => _instance;
 
   final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioDownloadService _downloadService = AudioDownloadService();
   
   // 状态流
   final StreamController<PlayerState> _stateController = StreamController<PlayerState>.broadcast();
@@ -21,9 +24,14 @@ class AudioService {
   final StreamController<Duration> _durationController = StreamController<Duration>.broadcast();
   Stream<Duration> get durationStream => _durationController.stream;
 
+  // 下载进度流
+  final StreamController<double> _downloadProgressController = StreamController<double>.broadcast();
+  Stream<double> get downloadProgressStream => _downloadProgressController.stream;
+
   Duration _currentPosition = Duration.zero;
   Duration _totalDuration = Duration.zero;
-  String? _currentUrl;
+  String? _currentUrl; // 服务器URL
+  String? _currentLocalPath; // 本地文件路径
   int? _currentHistoryId; // 当前播放的历史记录ID
   
   // 自动保存进度的定时器
@@ -120,14 +128,49 @@ class AudioService {
   }
 
   /// 播放音频，支持从保存的进度恢复
-  Future<void> play(String url, {int? historyId, Duration? resumePosition}) async {
+  /// [url] 服务器音频URL（可以是相对路径或绝对路径）
+  /// [historyId] 历史记录ID，用于保存播放进度
+  /// [resumePosition] 恢复播放的位置
+  /// [onDownloadProgress] 下载进度回调 (0.0 - 1.0)
+  Future<void> play(
+    String url, {
+    int? historyId,
+    Duration? resumePosition,
+    Function(double progress)? onDownloadProgress,
+  }) async {
     try {
       if (_currentUrl != url) {
         await _audioPlayer.stop();
         _currentUrl = url;
         _currentHistoryId = historyId;
         
-        await _audioPlayer.play(UrlSource(url));
+        // 先检查本地是否已有缓存
+        String localPath;
+        final cachedPath = await _downloadService.getLocalFilePath(url);
+        
+        if (cachedPath != null) {
+          // 使用缓存的本地文件
+          localPath = cachedPath;
+          _currentLocalPath = localPath;
+          if (onDownloadProgress != null) {
+            onDownloadProgress(1.0); // 已缓存，进度为100%
+          }
+        } else {
+          // 下载音频文件到本地
+          localPath = await _downloadService.downloadAudio(
+            url,
+            onProgress: (progress) {
+              _downloadProgressController.add(progress);
+              if (onDownloadProgress != null) {
+                onDownloadProgress(progress);
+              }
+            },
+          );
+          _currentLocalPath = localPath;
+        }
+        
+        // 使用本地文件路径播放
+        await _audioPlayer.play(DeviceFileSource(localPath));
         
         // 如果有恢复位置，跳转到该位置
         if (resumePosition != null && resumePosition > Duration.zero) {
@@ -143,7 +186,14 @@ class AudioService {
   }
 
   /// 播放并自动恢复进度
-  Future<void> playWithResume(String url, int historyId) async {
+  /// [url] 服务器音频URL
+  /// [historyId] 历史记录ID
+  /// [onDownloadProgress] 下载进度回调 (0.0 - 1.0)
+  Future<void> playWithResume(
+    String url,
+    int historyId, {
+    Function(double progress)? onDownloadProgress,
+  }) async {
     final savedProgress = await getSavedProgress(historyId);
     Duration? resumePosition;
     
@@ -157,7 +207,12 @@ class AudioService {
       }
     }
     
-    await play(url, historyId: historyId, resumePosition: resumePosition);
+    await play(
+      url,
+      historyId: historyId,
+      resumePosition: resumePosition,
+      onDownloadProgress: onDownloadProgress,
+    );
   }
 
   /// 暂停播放
@@ -175,6 +230,7 @@ class AudioService {
       await _saveProgress(); // 停止前保存进度
       await _audioPlayer.stop();
       _currentUrl = null;
+      _currentLocalPath = null;
       _currentPosition = Duration.zero;
     } catch (e) {
       throw Exception('Stop error: $e');
@@ -226,6 +282,9 @@ class AudioService {
     return (position / duration).clamp(0.0, 1.0);
   }
 
+  /// 获取当前本地文件路径
+  String? get currentLocalPath => _currentLocalPath;
+
   /// 释放资源
   void dispose() {
     _progressSaveTimer?.cancel();
@@ -234,5 +293,6 @@ class AudioService {
     _stateController.close();
     _positionController.close();
     _durationController.close();
+    _downloadProgressController.close();
   }
 }

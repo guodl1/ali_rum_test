@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:math' as math;
 
 class TtsProgressDialog extends StatelessWidget {
   final ValueNotifier<int> progressNotifier;
@@ -31,7 +32,13 @@ class TtsProgressDialog extends StatelessWidget {
             ValueListenableBuilder<int>(
               valueListenable: progressNotifier,
               builder: (context, value, _) {
-                final percent = value.clamp(0, 100);
+                final int pct = value.clamp(0, 100).toInt();
+                final double percent = pct.toDouble();
+                // 保证进度条宽度不为负，减去对话框内边距的近似值
+                final double screenWidth = MediaQuery.of(context).size.width;
+                final double rawWidth = screenWidth * (percent / 100.0) - 48.0;
+                final double barWidth = math.max(0.0, rawWidth);
+
                 return Column(
                   children: [
                     Stack(
@@ -47,7 +54,7 @@ class TtsProgressDialog extends StatelessWidget {
                         AnimatedContainer(
                           duration: const Duration(milliseconds: 400),
                           height: 14,
-                          width: MediaQuery.of(context).size.width * (percent / 100) - 48, // minus padding
+                          width: barWidth,
                           decoration: BoxDecoration(
                             color: fillColor,
                             borderRadius: BorderRadius.circular(8),
@@ -56,7 +63,7 @@ class TtsProgressDialog extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    Text('$percent%'),
+                    Text('${pct}%'),
                   ],
                 );
               },

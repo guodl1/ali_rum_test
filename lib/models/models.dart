@@ -136,22 +136,30 @@ class HistoryModel {
   }
 }
 
-/// 语音类型模型
+/// 语音类型模型（符合指南.md 8.13规范）
 class VoiceTypeModel {
-  final String id;
-  final String name;
-  final String language;
-  final String gender;
-  final String previewUrl;
-  final String description;
+  final String id; // 客户端本地唯一 Key，等于 voiceId
+  final String voiceId; // 服务端的 voiceId（保持一致）
+  final String name; // 语音名称
+  final String language; // 语言（如 zh-CN、en-US）
+  final String gender; // 性别（如 male、female）
+  final String previewUrl; // 试听链接
+  final String description; // 描述文本
+  final String? provider; // 供应商（如 minimax / openai / deepseek）
+  final String? model; // 所属模型（如 speech-01、gpt-4o-mini-tts）
+  final String? voiceType; // 语音类型（如 normal、emotion、clone）
 
   VoiceTypeModel({
     required this.id,
+    required this.voiceId,
     required this.name,
     required this.language,
     required this.gender,
     required this.previewUrl,
     required this.description,
+    this.provider,
+    this.model,
+    this.voiceType,
   });
 
   factory VoiceTypeModel.fromJson(Map<String, dynamic> json) {
@@ -165,24 +173,36 @@ class VoiceTypeModel {
       return value.toString();
     }
 
+    // id 和 voice_id 应该保持一致，如果只有 id 则使用 id 作为 voice_id
+    final voiceId = ensureString(json['voice_id'] ?? json['id']);
+    final id = ensureString(json['id'] ?? voiceId);
+
     return VoiceTypeModel(
-      id: ensureString(json['id']),
+      id: id,
+      voiceId: voiceId,
       name: ensureString(json['name']),
       language: ensureString(json['language']),
       gender: ensureString(json['gender']),
       previewUrl: ensureString(json['preview_url']),
       description: ensureString(json['description']),
+      provider: json.containsKey('provider') ? ensureString(json['provider']) : null,
+      model: json.containsKey('model') ? ensureString(json['model']) : null,
+      voiceType: json.containsKey('voice_type') ? ensureString(json['voice_type']) : null,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
       'id': id,
+      'voice_id': voiceId,
       'name': name,
       'language': language,
       'gender': gender,
       'preview_url': previewUrl,
       'description': description,
+      if (provider != null) 'provider': provider,
+      if (model != null) 'model': model,
+      if (voiceType != null) 'voice_type': voiceType,
     };
   }
 }

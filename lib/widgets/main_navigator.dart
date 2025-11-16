@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../pages/home_page.dart';
-import '../pages/upload_page.dart';
 import '../pages/settings_page.dart';
 import '../widgets/bottom_nav_bar.dart';
 
@@ -21,10 +20,7 @@ class _MainNavigatorState extends State<MainNavigator> {
   void initState() {
     super.initState();
     _pages = [
-      HomePage(
-        onNavigateToUpload: () => _changePage(1),
-      ),
-      const UploadPage(),
+      const HomePage(),
       const SettingsPage(),
     ];
   }

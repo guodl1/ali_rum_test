@@ -50,6 +50,40 @@ class ApiService {
     }
   }
 
+  /// 批量上传图片（用于图库选择）
+  Future<Map<String, dynamic>> uploadImages({
+    required List<File> files,
+    String? userId,
+  }) async {
+    try {
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$baseUrl/api/upload/images'),
+      );
+
+      for (var file in files) {
+        request.files.add(await http.MultipartFile.fromPath('files', file.path));
+      }
+      
+      if (userId != null) {
+        request.fields['user_id'] = userId;
+      }
+
+      var response = await request.send().timeout(
+        Duration(milliseconds: AppConfig.connectionTimeout * 3), // 图片处理可能需要更长时间
+      );
+
+      if (response.statusCode == 200) {
+        var responseData = await response.stream.bytesToString();
+        return json.decode(responseData);
+      } else {
+        throw Exception('Upload images failed: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Upload images error: $e');
+    }
+  }
+
   /// 提交文本进行TTS转换（统一接口）
   /// provider: 'azure', 'google', 'minimax'
   /// Azure/Google: 使用 voiceType

@@ -1,0 +1,277 @@
+{
+  "metadata": {
+    "exportedAt": "2025-11-16T03:47:06.656Z",
+    "componentName": "Header",
+    "totalElements": 17,
+    "nestingDepth": 6,
+    "plugin": "Figma to JSON Exporter"
+  },
+  "designTokens": {
+    "colors": {
+      "color-rgb(25, 24, 21)": "rgb(25, 24, 21)",
+      "color-rgb(241, 238, 227)": "rgb(241, 238, 227)"
+    },
+    "fonts": {
+      "arial": {
+        "family": "Arial",
+        "sizes": {
+          "size-16": "16px"
+        },
+        "weights": {
+          "weight-400": "400"
+        }
+      },
+      "albra": {
+        "family": "Albra",
+        "sizes": {
+          "size-16": "16px"
+        },
+        "weights": {
+          "weight-500": "500"
+        }
+      }
+    },
+    "spacing": {
+      "gap-91": "91px",
+      "gap-6": "6px"
+    },
+    "effects": {}
+  },
+  "structure": {
+    "name": "header",
+    "type": "FRAME",
+    "size": {
+      "w": 343,
+      "h": 48
+    },
+    "styles": {
+      "layout": {
+        "direction": "row",
+        "gap": 91,
+        "align": {
+          "main": "space-between",
+          "cross": "center"
+        }
+      }
+    },
+    "children": [
+      {
+        "name": "group-1",
+        "type": "GROUP",
+        "size": {
+          "w": 48,
+          "h": 48
+        },
+        "children": [
+          {
+            "name": "rectangle-387",
+            "type": "RECTANGLE",
+            "size": {
+              "w": 48,
+              "h": 48
+            },
+            "styles": {
+              "bg": "rgb(25, 24, 21)",
+              "radius": 100
+            }
+          },
+          {
+            "name": "vuesax-outline-arrow-right",
+            "type": "FRAME",
+            "size": {
+              "w": 24,
+              "h": 24
+            },
+            "styles": {
+              "layout": {
+                "direction": "row",
+                "gap": 0,
+                "align": {
+                  "main": "start",
+                  "cross": "start"
+                }
+              }
+            },
+            "children": [
+              {
+                "name": "vuesax-outline-arrow-right",
+                "type": "GROUP",
+                "size": {
+                  "w": 24,
+                  "h": 24
+                },
+                "children": [
+                  {
+                    "name": "arrow-right",
+                    "type": "GROUP",
+                    "size": {
+                      "w": 24,
+                      "h": 24
+                    },
+                    "children": [
+                      {
+                        "name": "vector",
+                        "type": "VECTOR",
+                        "size": {
+                          "w": 8,
+                          "h": 14
+                        },
+                        "styles": {
+                          "bg": "rgb(241, 238, 227)"
+                        }
+                      },
+                      {
+                        "name": "vector",
+                        "type": "VECTOR",
+                        "size": {
+                          "w": 18,
+                          "h": 2
+                        },
+                        "styles": {
+                          "bg": "rgb(241, 238, 227)"
+                        }
+                      },
+                      {
+                        "name": "vector",
+                        "type": "VECTOR",
+                        "size": {
+                          "w": 24,
+                          "h": 24
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "frame-34104",
+        "type": "FRAME",
+        "size": {
+          "w": 157,
+          "h": 22
+        },
+        "styles": {
+          "layout": {
+            "direction": "row",
+            "gap": 6,
+            "align": {
+              "main": "start",
+              "cross": "start"
+            }
+          }
+        },
+        "children": [
+          {
+            "name": "1-chapter--",
+            "type": "TEXT",
+            "size": {
+              "w": 81,
+              "h": 22
+            },
+            "content": "1 Chapter -",
+            "styles": {
+              "bg": "rgb(25, 24, 21)",
+              "text": {
+                "family": "Arial",
+                "size": 16,
+                "weight": "400",
+                "align": "left"
+              }
+            }
+          },
+          {
+            "name": "loomings",
+            "type": "TEXT",
+            "size": {
+              "w": 70,
+              "h": 22
+            },
+            "content": "Loomings",
+            "styles": {
+              "bg": "rgb(25, 24, 21)",
+              "text": {
+                "family": "Albra",
+                "size": 16,
+                "weight": "500",
+                "align": "left"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "name": "group-2",
+        "type": "GROUP",
+        "size": {
+          "w": 48,
+          "h": 48
+        },
+        "children": [
+          {
+            "name": "rectangle-387",
+            "type": "RECTANGLE",
+            "size": {
+              "w": 48,
+              "h": 48
+            },
+            "styles": {
+              "bg": "rgb(25, 24, 21)",
+              "radius": 100
+            }
+          },
+          {
+            "name": "vuesax-outline-arrow-right",
+            "type": "INSTANCE",
+            "size": {
+              "w": 0,
+              "h": 0
+            }
+          },
+          {
+            "name": "basil-other-1-outline",
+            "type": "FRAME",
+            "size": {
+              "w": 24,
+              "h": 24
+            },
+            "styles": {
+              "layout": {
+                "direction": "row",
+                "gap": 0,
+                "align": {
+                  "main": "start",
+                  "cross": "start"
+                }
+              }
+            },
+            "children": [
+              {
+                "name": "vector",
+                "type": "VECTOR",
+                "size": {
+                  "w": 15,
+                  "h": 3
+                },
+                "styles": {
+                  "bg": "rgb(241, 238, 227)"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "summary": {
+    "components": 0,
+    "instances": 1,
+    "frames": 4,
+    "texts": 2,
+    "hasAutoLayout": true,
+    "hasEffects": false
+  }
+}

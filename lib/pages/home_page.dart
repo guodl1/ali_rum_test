@@ -1,19 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'dart:io';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/models.dart';
 import '../services/api_service.dart';
 import '../services/localization_service.dart';
+import '../services/local_history_service.dart';
+import '../widgets/upload_options_dialog.dart';
 import 'audio_player_page.dart';
+import 'upload_page.dart';
+import 'login_page.dart';
 
 /// 主页 - 严格按照 home-structure.json 设计
 /// 参考 home.svg 的视觉效果
 class HomePage extends StatefulWidget {
   final Function(Locale)? onLanguageChange;
-  final VoidCallback? onNavigateToUpload;
 
-  const HomePage({Key? key, this.onLanguageChange, this.onNavigateToUpload}) : super(key: key);
+  const HomePage({Key? key, this.onLanguageChange}) : super(key: key);
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -21,17 +26,39 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final ApiService _apiService = ApiService();
+  final LocalHistoryService _localHistoryService = LocalHistoryService();
   final DateFormat _dateLabelFormat = DateFormat('MM-dd');
   final DateFormat _timeFormat = DateFormat('HH:mm');
 
   List<HistoryModel> _history = [];
   bool _isLoading = false;
   bool _hasLoadedOnce = false;
+  bool _isProcessingFile = false;
 
   @override
   void initState() {
     super.initState();
     _loadHistory();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // 每次页面显示时检查是否需要刷新
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkAndRefreshHistory();
+    });
+  }
+
+  Future<void> _checkAndRefreshHistory() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final needsRefresh = prefs.getBool('history_needs_refresh') ?? false;
+      if (needsRefresh) {
+        await prefs.setBool('history_needs_refresh', false);
+        await _loadHistory();
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadHistory() async {
@@ -40,7 +67,8 @@ class _HomePageState extends State<HomePage> {
     });
 
     try {
-      final history = await _apiService.getHistory(pageSize: 20);
+      // 使用本地历史记录服务
+      final history = await _localHistoryService.getHistory(pageSize: 20);
       if (!mounted) return;
 
       setState(() {
@@ -83,6 +111,222 @@ class _HomePageState extends State<HomePage> {
     return a.year == b.year && a.month == b.month && a.day == b.day;
   }
 
+  void _showUploadOptionsDialog(BuildContext context) async {
+    final result = await showDialog(
+      context: context,
+      builder: (context) => UploadOptionsDialog(
+        onOptionSelected: (option, {File? file, List<File>? files, String? text}) {
+          Navigator.pop(context, {
+            'option': option,
+            'file': file,
+            'files': files,
+            'text': text,
+          });
+        },
+      ),
+    );
+
+    if (result != null && mounted) {
+      final option = result['option'] as String;
+      final file = result['file'] as File?;
+      final files = result['files'] as List<File>?;
+      final textFromDialog = result['text'] as String?;
+
+      // 如果对话框直接返回了已处理的文本（dialog 已完成上传并返回text），直接跳转
+      if (textFromDialog != null) {
+        if (!mounted) return;
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => UploadPage(initialText: textFromDialog),
+          ),
+        );
+        return;
+      }
+
+      // 根据选项处理文件
+      if (option == 'file' && file != null) {
+        final text = await _handleFileUpload(file);
+        if (!mounted) return;
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => UploadPage(initialText: text),
+          ),
+        );
+      } else if (option == 'gallery' && files != null && files.isNotEmpty) {
+        final text = await _handleImagesUpload(files);
+        if (!mounted) return;
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => UploadPage(initialText: text),
+          ),
+        );
+      } else if (option == 'camera' && file != null) {
+        final text = await _handleFileUpload(file);
+        if (!mounted) return;
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => UploadPage(initialText: text),
+          ),
+        );
+      } else if (option == 'text') {
+        if (mounted) {
+          await Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => const UploadPage(),
+            ),
+          );
+        }
+      } else if (option == 'url') {
+        // 弹出输入网址对话框，自动补全 https://
+        final urlController = TextEditingController(text: 'https://');
+        final submitted = await showDialog<String?>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('输入网址'),
+            content: TextField(
+              controller: urlController,
+              decoration: const InputDecoration(hintText: 'https://example.com'),
+              keyboardType: TextInputType.url,
+              autofocus: true,
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context, null), child: const Text('取消')),
+              TextButton(onPressed: () => Navigator.pop(context, urlController.text.trim()), child: const Text('确定')),
+            ],
+          ),
+        );
+
+        if (submitted != null && submitted.isNotEmpty) {
+          // 确保以 https:// 开头
+          String normalized = submitted;
+          if (!normalized.startsWith('http://') && !normalized.startsWith('https://')) {
+            normalized = 'https://$normalized';
+          }
+          try {
+            setState(() {
+              _isProcessingFile = true;
+            });
+            final resp = await _apiService.submitUrl(url: normalized);
+            String? text;
+            if (resp['text'] != null && resp['text'].toString().isNotEmpty) {
+              text = resp['text'].toString();
+            }
+            if (!mounted) return;
+            await Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => UploadPage(initialText: text),
+              ),
+            );
+          } catch (e) {
+            if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('提交网址失败: $e')));
+          } finally {
+            if (mounted) setState(() { _isProcessingFile = false; });
+          }
+        }
+      }
+    }
+  }
+
+  Future<String?> _handleFileUpload(File file) async {
+    if (!mounted) return null;
+
+    setState(() {
+      _isProcessingFile = true;
+    });
+
+    try {
+      // 判断文件类型
+      final ext = file.path.split('.').last.toLowerCase();
+      String fileType = 'txt';
+      if (['jpg', 'jpeg', 'png', 'bmp'].contains(ext)) {
+        fileType = 'image';
+      } else if (ext == 'pdf') {
+        fileType = 'pdf';
+      } else if (['docx', 'doc'].contains(ext)) {
+        fileType = 'docx';
+      }
+
+      // 上传文件到服务器
+      final result = await _apiService.uploadFile(
+        file: file,
+        fileType: fileType,
+      );
+
+      // 保存处理后的文本到SharedPreferences，供upload页读取
+      String? extracted;
+      if (result['text'] != null && result['text'].toString().isNotEmpty) {
+        extracted = result['text'].toString();
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('upload_processed_text', extracted);
+      }
+
+      // 文件上传成功，文本已处理
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('文件处理完成')),
+        );
+      }
+      return extracted;
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('处理文件失败: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isProcessingFile = false;
+        });
+      }
+    }
+
+    return null;
+  }
+
+  Future<String?> _handleImagesUpload(List<File> files) async {
+    if (!mounted) return null;
+
+    setState(() {
+      _isProcessingFile = true;
+    });
+
+    try {
+      // 批量上传图片
+      final result = await _apiService.uploadImages(files: files);
+
+      String? extracted;
+      // 保存处理后的文本到SharedPreferences，供upload页读取
+      if (result['text'] != null && result['text'].toString().isNotEmpty) {
+        extracted = result['text'].toString();
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('upload_processed_text', extracted);
+      }
+
+      // 图片处理成功，文本已提取
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('图片处理完成')),
+        );
+      }
+      return extracted;
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('处理图片失败: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isProcessingFile = false;
+        });
+      }
+    }
+
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -97,6 +341,9 @@ class _HomePageState extends State<HomePage> {
 
     final localizations = AppLocalizations.of(context)!;
     final groupedHistory = _groupHistory(_history, localizations);
+
+    // 在每次构建后检查是否需要刷新历史（由生成流程设置）
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkHistoryRefresh());
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
@@ -158,6 +405,19 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  Future<void> _checkHistoryRefresh() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final needs = prefs.getBool('history_needs_refresh') ?? false;
+      if (needs) {
+        await prefs.setBool('history_needs_refresh', false);
+        await _loadHistory();
+      }
+    } catch (e) {
+      print('Check history refresh error: $e');
+    }
+  }
+
   /// 顶部标题栏 - 参考 home-structure.json title frame
   /// 左侧：头像 (48x48)，右侧：加号按钮 (48x48)
   Widget _buildTopBar(Color textColor) {
@@ -168,26 +428,36 @@ class _HomePageState extends State<HomePage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // 左侧头像 - frame-34078 (48x48)
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: const Color(0xFFD9D9D9), // rgb(217, 217, 217)
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.person,
-              color: textColor,
+          // 左侧头像 - frame-34078 (48x48)，点击跳转到登录页
+          GestureDetector(
+            onTap: () async {
+              final result = await Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const LoginPage(),
+                ),
+              );
+              // 如果登录成功，可以在这里更新UI
+              if (result == true) {
+                // TODO: 更新用户信息显示
+              }
+            },
+            child: Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: const Color(0xFFD9D9D9), // rgb(217, 217, 217)
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.person,
+                color: textColor,
+              ),
             ),
           ),
           // 右侧加号按钮 - plus frame (48x48)
         GestureDetector(
           onTap: () {
-            // 使用和bottom bar一样的导航方式
-            if (widget.onNavigateToUpload != null) {
-              widget.onNavigateToUpload!();
-            }
+            _showUploadOptionsDialog(context);
           },
           child: Container(
             width: 48,

@@ -21,4 +21,8 @@ class ApiKeys {
   
   // 联系方式
   static const String contactEmail = '1245105585@qq.com';
+
+  // Ali Auth (一键登录) - 填入你的 Android/ iOS SK
+  static const String aliAuthAndroidSk = 'YOUR_ALI_AUTH_ANDROID_SK';
+  static const String aliAuthIosSk = 'YOUR_ALI_AUTH_IOS_SK';
 }
