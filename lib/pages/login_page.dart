@@ -24,6 +24,7 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
   String _status = '';
   int _screenWidth = 0;
   int _screenHeight = 0;
+  bool _listenerRegistered = false;
 
 
   @override
@@ -37,8 +38,7 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    AliAuth.quitPage();
-    AliAuth.dispose();
+    _tearDownAliAuth();
     super.dispose();
   }
 
@@ -55,13 +55,14 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
     _screenHeight = (view.physicalSize.height / view.devicePixelRatio).floor();
   }
 
-  /// 初始化阿里云一键登录SDK（参考文档要求：先监听再初始化）
+  /// 完整初始化：注册监听 + 配置 SDK
   Future<void> _initializeAuth() async {
     try {
-      // 1. 先注册监听，确保在任何 login 之前
-      AliAuth.loginListen(onEvent: _handleLoginEvent);
+      if (!_listenerRegistered) {
+        _registerAliAuthListener();
+      }
 
-      // 2. 初始化 SDK 并配置 UI
+      // 初始化 SDK 配置
       await AliAuth.initSdk(_buildFullScreenConfig());
 
       if (mounted) {
@@ -82,8 +83,28 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
     }
   }
 
+  void _registerAliAuthListener() {
+    AliAuth.loginListen(onEvent: _handleLoginEvent);
+    _listenerRegistered = true;
+  }
+
+  Future<void> _tearDownAliAuth() async {
+    try {
+      await AliAuth.quitPage();
+    } catch (_) {}
+    try {
+      await AliAuth.dispose();
+    } catch (_) {}
+    _listenerRegistered = false;
+    _isInitialized = false;
+  }
+
   /// 一键登录（使用 loginListen 方法）
   Future<void> _oneClickLogin() async {
+    if (!_listenerRegistered) {
+      await _initializeAuth();
+    }
+
     if (!_isInitialized) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('SDK未初始化，请稍后重试')),
@@ -116,6 +137,32 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
           ),
         );
       }
+    }
+  }
+
+  Future<void> _quitAuthPage() async {
+    try {
+      await AliAuth.quitPage();
+      if (mounted) {
+        setState(() {
+          _status = '授权页已关闭';
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('关闭授权页失败: $e');
+      }
+    }
+  }
+
+  Future<void> _destroyAuthSdk() async {
+    await _tearDownAliAuth();
+    if (mounted) {
+      setState(() {
+        _status = 'AliAuth SDK 已释放';
+        _errorMessage = null;
+      });
     }
   }
 
@@ -330,7 +377,7 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
                             width: double.infinity,
                             height: MediaQuery.of(context).size.height * 0.07,
                             child: ElevatedButton(
-                              onPressed: _isLoading || !_isInitialized ? null : _oneClickLogin,
+                              onPressed: _isLoading ? null : _oneClickLogin,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF4CAF50),
                                 foregroundColor: Colors.white,
@@ -349,13 +396,33 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
                                       ),
                                     )
                                   : Text(
-                                      '一键登录',
+                                      '本机号码一键登录',
                                       style: TextStyle(
                                         fontSize: MediaQuery.of(context).size.width * 0.045,
                                         fontWeight: FontWeight.w600,
                                       ),
                                     ),
                             ),
+                          ),
+
+                          const SizedBox(height: 12),
+
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton(
+                                  onPressed: _quitAuthPage,
+                                  child: const Text('退出授权页'),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: OutlinedButton(
+                                  onPressed: _destroyAuthSdk,
+                                  child: const Text('释放SDK'),
+                                ),
+                              ),
+                            ],
                           ),
                           
                           if (_status.isNotEmpty) ...[
