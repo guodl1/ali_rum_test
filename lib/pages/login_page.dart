@@ -37,15 +37,15 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    AliAuth.quitPage();
-    AliAuth.dispose();
+    _quitPageIfPossible();
+    _disposeSdkIfNeeded();
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused) {
-      AliAuth.quitPage();
+      _quitPageIfPossible();
     }
   }
 
@@ -59,10 +59,12 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
   Future<void> _initializeAuth() async {
     try {
       // 2. 初始化 SDK 并配置 UI
+      // 1. 先注册监听，确保在任何 login 之前
+      await AliAuth.loginListen(onEvent: _handleLoginEvent);
+
       await AliAuth.initSdk(_buildFullScreenConfig());
 
-      // 1. 先注册监听，确保在任何 login 之前
-      AliAuth.loginListen(onEvent: _handleLoginEvent);
+
 
       if (mounted) {
         setState(() {
@@ -119,7 +121,22 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
     }
   }
 
-  void _handleLoginEvent(Map<dynamic, dynamic> onEvent) {
+  void _handleLoginEvent(dynamic rawEvent) {
+    final Map<dynamic, dynamic> onEvent;
+
+    if (rawEvent is Map<dynamic, dynamic>) {
+      onEvent = rawEvent;
+    } else if (rawEvent is Map) {
+      onEvent = Map<dynamic, dynamic>.from(rawEvent);
+    } else if (rawEvent != null) {
+      onEvent = {
+        'code': rawEvent.toString(),
+        'msg': rawEvent.toString(),
+      };
+    } else {
+      onEvent = {};
+    }
+
     if (kDebugMode) {
       print("----------------> $onEvent <----------------");
     }
@@ -139,12 +156,12 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
     }
 
     if (code == "700005") {
-      AliAuth.quitPage();
+      _quitPageIfPossible();
     }
 
     if (code == "600000" && data != null) {
       final phoneNumber = data['phoneNumber'] ?? data['mobile'];
-      AliAuth.quitPage();
+      _quitPageIfPossible();
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -176,6 +193,26 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
     }
   }
 
+  void _quitPageIfPossible() {
+    if (!_isInitialized) return;
+    AliAuth.quitPage().catchError((error) {
+      if (kDebugMode) {
+        print('quitPage 调用失败: $error');
+      }
+    });
+  }
+
+  void _disposeSdkIfNeeded() {
+    if (!_isInitialized) return;
+    AliAuth.dispose().catchError((error) {
+      if (kDebugMode) {
+        print('dispose 调用失败: $error');
+      }
+    }).whenComplete(() {
+      _isInitialized = false;
+    });
+  }
+
   AliAuthModel _buildFullScreenConfig() {
     final unit = (_screenHeight * 0.06).floor();
     final logBtnHeight = (unit * 1.1).floor();
@@ -202,9 +239,9 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
       logoHidden: true,
       privacyState: false,
       protocolOneName: "《用户协议》",
-      protocolOneURL: "https://example.com/user-agreement",
+      protocolOneURL: "https://tunderly.com",
       protocolTwoName: "《隐私政策》",
-      protocolTwoURL: "https://example.com/privacy",
+      protocolTwoURL: "https://jokui.com",
       protocolCustomColor: "#4CAF50",
       protocolColor: "#9E9E9E",
       protocolLayoutGravity: Gravity.centerHorizntal,
