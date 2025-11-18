@@ -64,8 +64,6 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
 
       await AliAuth.initSdk(_buildFullScreenConfig());
 
-
-
       if (mounted) {
         setState(() {
           _isInitialized = true;
