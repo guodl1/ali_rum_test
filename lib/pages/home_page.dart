@@ -57,6 +57,10 @@ class _HomePageState extends State<HomePage> {
       if (needsRefresh) {
         await prefs.setBool('history_needs_refresh', false);
         await _loadHistory();
+        // 刷新后更新UI
+        if (mounted) {
+          setState(() {});
+        }
       }
     } catch (_) {}
   }

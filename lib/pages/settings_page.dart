@@ -3,6 +3,7 @@ import '../widgets/liquid_glass_card.dart';
 import '../config/api_keys.dart';
 import '../services/localization_service.dart';
 import '../services/api_service.dart';
+import '../services/usage_stats_service.dart';
 import 'products_page.dart';
 
 /// 设置页面
@@ -16,11 +17,12 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   final LocalizationService _localizationService = LocalizationService();
   final ApiService _apiService = ApiService();
+  final UsageStatsService _usageStatsService = UsageStatsService();
   String _selectedLanguage = 'zh';
   String _selectedTheme = 'system';
   
   // 使用统计
-  int _usedCharacters = 1512;
+  int _usedCharacters = 0;
   int _totalCharacters = 10000;
   bool _isMember = false;
   bool _isMembershipExpanded = true;
@@ -30,6 +32,15 @@ class _SettingsPageState extends State<SettingsPage> {
     super.initState();
     _selectedLanguage = _localizationService.currentLocale.languageCode;
     _loadUsageStats();
+  }
+  
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // 每次页面显示时刷新使用统计
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadUsageStats();
+    });
   }
 
   Widget _buildUsageInfoTile({
@@ -70,19 +81,35 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<void> _loadUsageStats() async {
     try {
-      final stats = await _apiService.getUserUsageStats();
+      // 先尝试从本地获取
+      final localStats = await _usageStatsService.getUsageStats();
       if (mounted) {
         setState(() {
-          _usedCharacters = stats['used_characters'] ?? 0;
-          _totalCharacters = stats['total_characters'] ?? 10000;
-          _isMember = stats['is_member'] ?? false;
+          _usedCharacters = localStats['used_characters'] as int;
+          _totalCharacters = localStats['total_characters'] as int;
+          _isMember = localStats['is_member'] as bool;
         });
       }
-    } catch (e) {
-      // 如果API失败，使用默认值
-      if (mounted) {
-        // 可以在这里显示错误提示
+      
+      // 然后尝试从服务器同步（如果可用）
+      try {
+        final serverStats = await _apiService.getUserUsageStats();
+        if (mounted && serverStats.isNotEmpty) {
+          setState(() {
+            _usedCharacters = serverStats['used_characters'] ?? _usedCharacters;
+            _totalCharacters = serverStats['total_characters'] ?? _totalCharacters;
+            _isMember = serverStats['is_member'] ?? _isMember;
+          });
+          // 同步到本地
+          await _usageStatsService.setTotalCharacters(_totalCharacters);
+          await _usageStatsService.setIsMember(_isMember);
+        }
+      } catch (e) {
+        // 服务器同步失败，使用本地数据
+        print('Failed to sync usage stats from server: $e');
       }
+    } catch (e) {
+      print('Failed to load usage stats: $e');
     }
   }
 

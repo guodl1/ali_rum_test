@@ -13,6 +13,7 @@ import '../services/audio_service.dart';
 import '../services/language_service.dart';
 import '../services/local_history_service.dart';
 import '../services/audio_download_service.dart';
+import '../services/usage_stats_service.dart';
 import '../models/models.dart';
 import 'voice_library_page.dart';
 import 'audio_player_page.dart';
@@ -42,6 +43,7 @@ class _UploadPageState extends State<UploadPage> {
   final LanguageService _languageService = LanguageService();
   final LocalHistoryService _localHistoryService = LocalHistoryService();
   final AudioDownloadService _downloadService = AudioDownloadService();
+  final UsageStatsService _usageStatsService = UsageStatsService();
   final TextEditingController _urlController = TextEditingController();
   final ImagePicker _imagePicker = ImagePicker();
   final ScrollController _textScrollController = ScrollController();
@@ -161,11 +163,21 @@ class _UploadPageState extends State<UploadPage> {
     return Scaffold(
       backgroundColor: backgroundColor,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final screenWidth = constraints.maxWidth;
+            final screenHeight = constraints.maxHeight;
+            final isSmallScreen = screenHeight < 600;
+            final isTablet = screenWidth > 600;
+            
+            return SingleChildScrollView(
+              padding: EdgeInsets.symmetric(
+                horizontal: isTablet ? screenWidth * 0.1 : 20,
+                vertical: isSmallScreen ? 10 : 20,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
               // 标题
               Text(
                 'Upload',
@@ -187,7 +199,7 @@ class _UploadPageState extends State<UploadPage> {
               _buildVoiceSelection(),
               const SizedBox(height: 24),
               // 提取的文本预览（可滚动，超出渐隐）
-              // if (_extractedText != null) _buildTextPreview(),
+              if (_extractedText != null && _extractedText!.isNotEmpty) _buildTextPreview(),
               const SizedBox(height: 24),
               // 生成按钮
               _buildGenerateButton(),
@@ -693,11 +705,15 @@ class _UploadPageState extends State<UploadPage> {
     final textColor = isDark
         ? const Color(0xFFF1EEE3)
         : const Color(0xFF191815);
+    final screenHeight = MediaQuery.of(context).size.height;
+    final buttonHeight = screenHeight < 600 ? 80.0 : 100.0;
+    final iconSize = screenHeight < 600 ? 28.0 : 32.0;
+    final fontSize = screenHeight < 600 ? 12.0 : 14.0;
 
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        height: 100,
+        height: buttonHeight,
         decoration: BoxDecoration(
           color: Colors.white.withOpacity(isDark ? 0.1 : 0.5),
           borderRadius: BorderRadius.circular(20),
@@ -708,14 +724,14 @@ class _UploadPageState extends State<UploadPage> {
             Icon(
               icon,
               color: textColor,
-              size: 32,
+              size: iconSize,
             ),
             const SizedBox(height: 8),
             Text(
               label,
               style: TextStyle(
                 color: textColor,
-                fontSize: 14,
+                fontSize: fontSize,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -838,12 +854,15 @@ class _UploadPageState extends State<UploadPage> {
   }
 
   Widget _buildTextPreview() {
+    final screenHeight = MediaQuery.of(context).size.height;
+    final previewHeight = screenHeight < 600 ? 200.0 : 300.0;
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         LiquidGlassCard(
           child: SizedBox(
-            height: 300,
+            height: previewHeight,
             child: Column(
               children: [
                 Expanded(
@@ -870,25 +889,50 @@ class _UploadPageState extends State<UploadPage> {
                 // 底部工具栏：设为起点、删除选中、插入文本、显示起点位置
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                  child: Row(
-                    children: [
-                      OutlinedButton(
-                        onPressed: _setPlayStartFromSelection,
-                        child: const Text('设为起点'),
-                      ),
-                      const SizedBox(width: 8),
-                      OutlinedButton(
-                        onPressed: _deleteSelectionInPreview,
-                        child: const Text('删除选中'),
-                      ),
-                      const SizedBox(width: 8),
-                      OutlinedButton(
-                        onPressed: _insertTextAtCursor,
-                        child: const Text('插入文本'),
-                      ),
-                      const Spacer(),
-                      Text('起点: ${_playStartIndex}'),
-                    ],
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isSmall = constraints.maxWidth < 400;
+                      return isSmall
+                          ? Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                OutlinedButton(
+                                  onPressed: _setPlayStartFromSelection,
+                                  child: const Text('设为起点', style: TextStyle(fontSize: 12)),
+                                ),
+                                OutlinedButton(
+                                  onPressed: _deleteSelectionInPreview,
+                                  child: const Text('删除选中', style: TextStyle(fontSize: 12)),
+                                ),
+                                OutlinedButton(
+                                  onPressed: _insertTextAtCursor,
+                                  child: const Text('插入文本', style: TextStyle(fontSize: 12)),
+                                ),
+                                Text('起点: ${_playStartIndex}', style: const TextStyle(fontSize: 12)),
+                              ],
+                            )
+                          : Row(
+                              children: [
+                                OutlinedButton(
+                                  onPressed: _setPlayStartFromSelection,
+                                  child: const Text('设为起点'),
+                                ),
+                                const SizedBox(width: 8),
+                                OutlinedButton(
+                                  onPressed: _deleteSelectionInPreview,
+                                  child: const Text('删除选中'),
+                                ),
+                                const SizedBox(width: 8),
+                                OutlinedButton(
+                                  onPressed: _insertTextAtCursor,
+                                  child: const Text('插入文本'),
+                                ),
+                                const Spacer(),
+                                Text('起点: ${_playStartIndex}'),
+                              ],
+                            );
+                    },
                   ),
                 ),
               ],
@@ -1411,7 +1455,11 @@ class _UploadPageState extends State<UploadPage> {
           _generateProgress = 1.0; // 下载完成
         });
       }
-      print("baocun");
+      // 更新使用统计（记录使用的字符数）
+      if (_extractedText != null && _extractedText!.isNotEmpty) {
+        await _usageStatsService.addUsedCharacters(_extractedText!.length);
+      }
+
       // 保存到本地历史记录（使用本地文件路径）
       final history = await _localHistoryService.saveHistory(
         audioUrl: localAudioPath, // 使用本地路径
@@ -1419,18 +1467,16 @@ class _UploadPageState extends State<UploadPage> {
         resultText: _extractedText,
         fileName: _selectedFile?.path.split('/').last,
       );
-      print("bofang");
-      // 播放本地文件
-      await _audioService.play(localAudioPath);
-
-      // 标记需要刷新首页历史并跳转到播放页
+      
+      // 标记需要刷新首页历史
       try {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setBool('history_needs_refresh', true);
       } catch (_) {}
+      // 播放本地文件
+      await _audioService.play(localAudioPath);
 
       if (mounted) {
-        print("tiaozhuan");
         await _openPlayerForUrl(history);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Audio ready and playing')),
