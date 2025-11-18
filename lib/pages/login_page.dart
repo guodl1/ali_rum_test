@@ -158,11 +158,10 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
 
       case '600000': // 登录成功
         _quitPageIfPossible();
-        final parsed = _parseLoginData(eventData);
         String? serverPhone;
         int? serverUserId;
         try {
-          final serverResult = await _exchangeTokenWithServer(parsed.token);
+          final serverResult = await _exchangeTokenWithServer(eventData);
           serverPhone = serverResult?.phone;
           serverUserId = serverResult?.userId;
         } catch (e) {
@@ -212,8 +211,6 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
   ({String token, String? phone}) _parseLoginData(dynamic data) {
     if (data is Map) {
       final token = data['token']?.toString() ?? '';
-      final phone =
-          data['phoneNumber']?.toString() ?? data['mobile']?.toString();
       if (kDebugMode) {
         print('AliAuth 登录手机号(客户端返回): $phone');
       }
@@ -331,6 +328,7 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
       switchAccTextSize: 14,
       screenOrientation: -1,
       pageBackgroundPath: "assets/background_image.jpeg",
+      autoQuitPage: true,
     );
   }
 
