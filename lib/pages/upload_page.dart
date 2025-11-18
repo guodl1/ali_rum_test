@@ -178,33 +178,33 @@ class _UploadPageState extends State<UploadPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-              // 标题
-              Text(
-                'Upload',
-                style: TextStyle(
-                  color: textColor,
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                ),
+                  // 标题
+                  Text(
+                    'Upload',
+                    style: TextStyle(
+                      color: textColor,
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  
+                  // 上传选项卡片 (基于 upload-structure.json)
+                  _buildUploadOptionsCard(textColor),
+                  
+                  const SizedBox(height: 24),
+                  // 语音选择
+                  _buildVoiceSelection(),
+                  const SizedBox(height: 24),
+                  // 提取的文本预览（可滚动，超出渐隐）
+                  if (_extractedText != null && _extractedText!.isNotEmpty) _buildTextPreview(),
+                  const SizedBox(height: 24),
+                  // 生成按钮
+                  _buildGenerateButton(),
+                ],
               ),
-              const SizedBox(height: 32),
-              
-              // 上传选项卡片 (基于 upload-structure.json)
-              _buildUploadOptionsCard(textColor),
-              
-              const SizedBox(height: 24),
-
-              const SizedBox(height: 24),
-              // 语音选择
-              _buildVoiceSelection(),
-              const SizedBox(height: 24),
-              // 提取的文本预览（可滚动，超出渐隐）
-              if (_extractedText != null && _extractedText!.isNotEmpty) _buildTextPreview(),
-              const SizedBox(height: 24),
-              // 生成按钮
-              _buildGenerateButton(),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );

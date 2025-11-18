@@ -19,7 +19,7 @@ class _LoginPageState extends State<LoginPage> {
   bool _isInitialized = false;
   bool _isLoading = false;
   String? _errorMessage;
-  StreamSubscription? _authSubscription;
+
 
   @override
   void initState() {
@@ -29,21 +29,13 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   void dispose() {
-    _authSubscription?.cancel();
+
     super.dispose();
   }
 
   /// 初始化阿里云一键登录SDK
   Future<void> _initializeAuth() async {
     try {
-      // 先设置监听器（必须在 initSdk 之前）
-      _authSubscription = AliAuth.onAuthResult.listen((result) {
-        print('AliAuth result: $result');
-        if (mounted) {
-          _handleAuthResult(result);
-        }
-      });
-
       // 初始化 SDK：使用 AliAuth 的 Dart API
       // 请在 `lib/config/api_keys.dart` 中填写真实的 SK
       await AliAuth.initSdk(AliAuthModel(
