@@ -15,7 +15,7 @@
     <uses-permission android:name="android.permission.CAMERA"/>
     
     <application
-        android:label="tts"
+        android:label="听阅"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
