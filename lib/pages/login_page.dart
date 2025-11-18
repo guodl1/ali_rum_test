@@ -158,7 +158,21 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
     }
 
     if (code == "600000" && data != null) {
-      final phoneNumber = data['phoneNumber'] ?? data['mobile'];
+      String? token;
+      String? phoneNumber;
+
+      if (data is Map) {
+        // sdk 旧版本返回 Map
+        token = data['token']?.toString();
+        phoneNumber =
+            data['phoneNumber']?.toString() ?? data['mobile']?.toString();
+      } else if (data is String) {
+        // sdk 新版本直接返回加密字符串
+        token = data;
+      } else {
+        token = data.toString();
+      }
+
       _quitPageIfPossible();
       if (mounted) {
         setState(() {
@@ -167,8 +181,8 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
           _status = '登录成功';
         });
         Navigator.of(context).pop({
-          'token': data['token'],
-          'phone': phoneNumber,
+          'token': token,
+          if (phoneNumber != null) 'phone': phoneNumber,
         });
       }
       return;
@@ -255,6 +269,7 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
       switchAccTextColor: "#4CAF50",
       switchAccTextSize: 14,
       screenOrientation: -1,
+      pageBackgroundPath: "assets/background_image.jpeg",
     );
   }
 
