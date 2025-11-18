@@ -53,9 +53,6 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
         _registerAliAuthListener();
       }
 
-      // 初始化 SDK 配置
-      await AliAuth.initSdk(AliAuthConfig.buildFullScreenConfig());
-
       if (mounted) {
         setState(() {
           _isInitialized = true;
