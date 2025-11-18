@@ -1,3 +1,6 @@
+import 'dart:ui';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
@@ -14,6 +17,7 @@ class LiquidGlassCard extends StatelessWidget {
   final double borderRadius;
   final double blurIntensity;
   final double thickness;
+  final bool enableAdvancedEffect;
 
   const LiquidGlassCard({
     Key? key,
@@ -27,6 +31,7 @@ class LiquidGlassCard extends StatelessWidget {
     this.borderRadius = 16.0,
     this.blurIntensity = 10.0,
     this.thickness = 15.0,
+    this.enableAdvancedEffect = true,
   }) : super(key: key);
 
   @override
@@ -38,31 +43,81 @@ class LiquidGlassCard extends StatelessWidget {
         ? const Color(0x1AFFFFFF)
         : const Color(0x26FFFFFF);
 
+    final content = Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(borderRadius),
+        child: Container(
+          padding: padding ?? const EdgeInsets.all(16.0),
+          child: child,
+        ),
+      ),
+    );
+
+    final shouldUseRenderer = enableAdvancedEffect && !_forceFallback;
+
+    final glassBody = shouldUseRenderer
+        ? LiquidGlass.withOwnLayer(
+            settings: LiquidGlassSettings(
+              thickness: thickness,
+              blur: blurIntensity,
+              glassColor: backgroundColor ?? defaultBgColor,
+              lightIntensity: 1.2,
+              ambientStrength: 0.3,
+            ),
+            shape: LiquidRoundedSuperellipse(
+              borderRadius: borderRadius,
+            ),
+            child: content,
+          )
+        : _FallbackGlass(
+            borderRadius: borderRadius,
+            blurIntensity: blurIntensity,
+            backgroundColor: backgroundColor ?? defaultBgColor,
+            child: content,
+          );
+
     return Container(
       width: width,
       height: height,
       margin: margin,
-      child: LiquidGlass.withOwnLayer(
-        settings: LiquidGlassSettings(
-          thickness: thickness,
-          blur: blurIntensity,
-          glassColor: backgroundColor ?? defaultBgColor,
-          lightIntensity: 1.2,
-          ambientStrength: 0.3,
+      child: glassBody,
+    );
+  }
+
+  bool get _forceFallback {
+    if (!enableAdvancedEffect) return true;
+    if (kIsWeb) return true;
+    return defaultTargetPlatform == TargetPlatform.android;
+  }
+}
+
+class _FallbackGlass extends StatelessWidget {
+  final double borderRadius;
+  final double blurIntensity;
+  final Color backgroundColor;
+  final Widget child;
+
+  const _FallbackGlass({
+    required this.borderRadius,
+    required this.blurIntensity,
+    required this.backgroundColor,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(borderRadius),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(
+          sigmaX: blurIntensity,
+          sigmaY: blurIntensity,
         ),
-        shape: LiquidRoundedSuperellipse(
-          borderRadius: borderRadius,
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(borderRadius),
-            child: Container(
-              padding: padding ?? const EdgeInsets.all(16.0),
-              child: child,
-            ),
-          ),
+        child: Container(
+          color: backgroundColor,
+          child: child,
         ),
       ),
     );
