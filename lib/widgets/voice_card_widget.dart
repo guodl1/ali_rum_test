@@ -26,7 +26,7 @@ class VoiceCardWidget extends StatelessWidget {
         ? const Color(0xFFF1EEE3)
         : const Color(0xFF272536);
     final accentColor = theme.colorScheme.primary;
-    
+
     // 根据设计，使用米黄色背景 #E8E1C4
     final cardBackgroundColor = isDark
         ? textColor.withValues(alpha: 0.06)
@@ -39,7 +39,7 @@ class VoiceCardWidget extends StatelessWidget {
         margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 0),
         decoration: BoxDecoration(
           color: isSelected
-              ? accentColor.withValues(alpha: 0.18)
+          ? accentColor.withValues(alpha: 0.18)
               : cardBackgroundColor,
           borderRadius: BorderRadius.circular(15),
         ),
@@ -49,31 +49,31 @@ class VoiceCardWidget extends StatelessWidget {
             children: [
               // 左侧内容区域
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
-                  children: [
+        children: [
                     // 语音名称
-                    Row(
-                      children: [
+          Row(
+            children: [
                         _buildGenderIcon(textColor),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            voice.name,
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  voice.name,
                             style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
                               color: textColor,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    // 语言标签
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          // 语言标签
                     Wrap(
                       spacing: 8,
                       runSpacing: 4,
@@ -94,7 +94,7 @@ class VoiceCardWidget extends StatelessWidget {
                               fontSize: 10,
                               fontWeight: FontWeight.w500,
                               color: textColor.withValues(alpha: 0.7),
-                            ),
+            ),
                           ),
                         ),
                         if (isSelected)
@@ -106,7 +106,7 @@ class VoiceCardWidget extends StatelessWidget {
                             decoration: BoxDecoration(
                               color: accentColor.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(8),
-                            ),
+          ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
@@ -132,16 +132,16 @@ class VoiceCardWidget extends StatelessWidget {
                     // 描述文字
                     if (voice.description.isNotEmpty) ...[
                       const SizedBox(height: 6),
-                      Text(
-                        voice.description,
-                        style: TextStyle(
+          Text(
+            voice.description,
+            style: TextStyle(
                           fontSize: 11,
                           height: 1.3,
-                          color: textColor.withValues(alpha: 0.6),
-                        ),
+              color: textColor.withValues(alpha: 0.6),
+            ),
                         maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+            overflow: TextOverflow.ellipsis,
+          ),
                     ],
                   ],
                 ),
@@ -158,7 +158,7 @@ class VoiceCardWidget extends StatelessWidget {
                     border: Border.all(
                       color: const Color(0xFF757575),
                       width: 4,
-                    ),
+              ),
                   ),
                   child: Center(
                     child: Icon(
@@ -166,10 +166,10 @@ class VoiceCardWidget extends StatelessWidget {
                       color: const Color(0xFF757575),
                       size: 24,
                     ),
-                  ),
-                ),
               ),
-            ],
+            ),
+          ),
+        ],
           ),
         ),
       ),

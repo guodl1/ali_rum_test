@@ -72,7 +72,7 @@ class _AudioPlayerPageState extends State<AudioPlayerPage> with SingleTickerProv
           
           if (await titlesFile.exists()) {
             titlesJson = await titlesFile.readAsString();
-          } else {
+      } else {
             // 本地文件不存在，使用普通文本显示
             if (mounted) {
               setState(() {
@@ -94,15 +94,15 @@ class _AudioPlayerPageState extends State<AudioPlayerPage> with SingleTickerProv
       } else {
         // 服务器 URL，从服务器下载
         String titlesUrl = audioUrl.replaceAll(RegExp(r'\.(mp3|wav|m4a|ogg|aac|flac)$'), '.titles');
-        
-        final baseUrl = _apiService.baseUrl;
-        final fullUrl = titlesUrl.startsWith('http') ? titlesUrl : '$baseUrl$titlesUrl';
-        
-        final response = await http.get(Uri.parse(fullUrl)).timeout(
-          const Duration(seconds: 5),
-        );
 
-        if (response.statusCode == 200) {
+      final baseUrl = _apiService.baseUrl;
+      final fullUrl = titlesUrl.startsWith('http') ? titlesUrl : '$baseUrl$titlesUrl';
+      
+      final response = await http.get(Uri.parse(fullUrl)).timeout(
+        const Duration(seconds: 5),
+      );
+
+      if (response.statusCode == 200) {
           titlesJson = utf8.decode(response.bodyBytes);
         } else {
           // titles 文件不存在，使用普通文本显示
@@ -116,13 +116,13 @@ class _AudioPlayerPageState extends State<AudioPlayerPage> with SingleTickerProv
       }
       
       // 解析 titles JSON
-      final segments = TitlesParser.parseTitles(titlesJson);
-      
-      if (mounted) {
-        setState(() {
-          _titlesSegments = segments;
-          _titlesLoaded = true;
-        });
+        final segments = TitlesParser.parseTitles(titlesJson);
+        
+        if (mounted) {
+          setState(() {
+            _titlesSegments = segments;
+            _titlesLoaded = true;
+          });
       }
     } catch (e) {
       // titles 文件不存在或加载失败，使用普通文本显示
@@ -531,13 +531,13 @@ class _AudioPlayerPageState extends State<AudioPlayerPage> with SingleTickerProv
           ),
           
           // 右侧：快进15秒按钮（参考 Nav.svg）
-          _buildNavButton(
-            icon: Icons.forward_10,
-            onTap: () {
-              final newPosition = _currentPosition + const Duration(seconds: 15);
-              _audioService.seek(newPosition > _totalDuration ? _totalDuration : newPosition);
-            },
-            color: const Color(0xFFA5A296),
+              _buildNavButton(
+                icon: Icons.forward_10,
+                onTap: () {
+                  final newPosition = _currentPosition + const Duration(seconds: 15);
+                  _audioService.seek(newPosition > _totalDuration ? _totalDuration : newPosition);
+                },
+                color: const Color(0xFFA5A296),
           ),
         ],
       ),

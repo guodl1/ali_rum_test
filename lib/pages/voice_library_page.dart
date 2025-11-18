@@ -181,9 +181,9 @@ class _VoiceLibraryPageState extends State<VoiceLibraryPage> {
       print('[VoiceLibrary] Error syncing voices: $e');
       // 如果同步失败，尝试加载本地缓存的数据
       if (_voices.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error syncing voices: $e')),
-        );
+      );
       }
     } finally {
       if (mounted) {
@@ -221,11 +221,11 @@ class _VoiceLibraryPageState extends State<VoiceLibraryPage> {
     
     // 使用 compute 在后台线程进行过滤，避免阻塞 UI
     final filtered = _voices.where((voice) {
-      final matchesKeyword = keyword.isEmpty ||
-          voice.name.toLowerCase().contains(keyword) ||
-          voice.description.toLowerCase().contains(keyword);
-      return matchesKeyword;
-    }).toList();
+        final matchesKeyword = keyword.isEmpty ||
+            voice.name.toLowerCase().contains(keyword) ||
+            voice.description.toLowerCase().contains(keyword);
+        return matchesKeyword;
+      }).toList();
 
     print('[VoiceLibrary] Filtered voices count: ${filtered.length}');
 
@@ -305,15 +305,15 @@ class _VoiceLibraryPageState extends State<VoiceLibraryPage> {
             children: [
               // 固定头部区域
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                 child: Column(
-                  children: [
-                    _buildHeader(textColor, localizations),
-                    const SizedBox(height: 24),
-                    _buildSearchBar(textColor, localizations),
-                    const SizedBox(height: 16),
-                    _buildFilterChips(textColor, accentColor),
-                    const SizedBox(height: 20),
+              children: [
+                _buildHeader(textColor, localizations),
+                const SizedBox(height: 24),
+                _buildSearchBar(textColor, localizations),
+                const SizedBox(height: 16),
+                _buildFilterChips(textColor, accentColor),
+                const SizedBox(height: 20),
                   ],
                 ),
               ),
@@ -398,40 +398,40 @@ class _VoiceLibraryPageState extends State<VoiceLibraryPage> {
   Widget _buildSearchBar(Color textColor, AppLocalizations localizations) {
     return StatefulBuilder(
       builder: (context, setState) {
-        return LiquidGlassCard(
-          borderRadius: 22,
-          backgroundColor: textColor.withValues(alpha: 0.05),
-          child: Row(
-            children: [
-              Icon(Icons.search, color: textColor.withValues(alpha: 0.6)),
-              const SizedBox(width: 12),
-              Expanded(
-                child: TextField(
-                  controller: _searchController,
-                  style: TextStyle(color: textColor),
+    return LiquidGlassCard(
+      borderRadius: 22,
+      backgroundColor: textColor.withValues(alpha: 0.05),
+      child: Row(
+        children: [
+          Icon(Icons.search, color: textColor.withValues(alpha: 0.6)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: TextField(
+              controller: _searchController,
+              style: TextStyle(color: textColor),
                   onChanged: (value) {
                     setState(() {}); // 更新清除按钮的显示状态
                     _applyFilters();
                   },
-                  decoration: InputDecoration(
-                    hintText: localizations.translate('search'),
-                    border: InputBorder.none,
-                    isCollapsed: true,
-                    hintStyle: TextStyle(color: textColor.withValues(alpha: 0.4)),
-                  ),
-                ),
+              decoration: InputDecoration(
+                hintText: localizations.translate('search'),
+                border: InputBorder.none,
+                isCollapsed: true,
+                hintStyle: TextStyle(color: textColor.withValues(alpha: 0.4)),
               ),
-              if (_searchController.text.isNotEmpty)
-                IconButton(
-                  onPressed: () {
-                    _searchController.clear();
-                    setState(() {}); // 更新清除按钮的显示状态
-                    _applyFilters();
-                  },
-                  icon: Icon(Icons.close, color: textColor.withValues(alpha: 0.6)),
-                ),
-            ],
+            ),
           ),
+          if (_searchController.text.isNotEmpty)
+            IconButton(
+              onPressed: () {
+                _searchController.clear();
+                    setState(() {}); // 更新清除按钮的显示状态
+                _applyFilters();
+              },
+              icon: Icon(Icons.close, color: textColor.withValues(alpha: 0.6)),
+            ),
+        ],
+      ),
         );
       },
     );
@@ -481,49 +481,49 @@ class _VoiceLibraryPageState extends State<VoiceLibraryPage> {
         return Padding(
           padding: const EdgeInsets.only(bottom: 16),
           child: LiquidGlassCard(
-            backgroundColor: textColor.withValues(alpha: 0.05),
-            child: SizedBox(
+          backgroundColor: textColor.withValues(alpha: 0.05),
+          child: SizedBox(
               height: 77, // 与实际 card 高度一致
-              child: Row(
-                children: [
-                  Container(
+            child: Row(
+              children: [
+                Container(
                     width: 36,
                     height: 36,
-                    decoration: BoxDecoration(
-                      color: textColor.withValues(alpha: 0.08),
+                  decoration: BoxDecoration(
+                    color: textColor.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(18),
-                    ),
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          height: 14,
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        height: 14,
                           width: 120,
-                          decoration: BoxDecoration(
-                            color: textColor.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
+                        decoration: BoxDecoration(
+                          color: textColor.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                        const SizedBox(height: 10),
-                        Container(
-                          height: 12,
-                          width: 160,
-                          decoration: BoxDecoration(
-                            color: textColor.withValues(alpha: 0.07),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
+                      ),
+                      const SizedBox(height: 10),
+                      Container(
+                        height: 12,
+                        width: 160,
+                        decoration: BoxDecoration(
+                          color: textColor.withValues(alpha: 0.07),
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
+        ),
         );
       },
     );
@@ -535,26 +535,26 @@ class _VoiceLibraryPageState extends State<VoiceLibraryPage> {
         padding: const EdgeInsets.symmetric(horizontal: 20),
         children: [
           LiquidGlassCard(
-            backgroundColor: textColor.withValues(alpha: 0.05),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 32),
-              child: Column(
-                children: [
-                  Icon(
-                    Icons.voice_over_off,
-                    color: textColor.withValues(alpha: 0.5),
-                    size: 48,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'No voices available',
-                    style: TextStyle(
-                      color: textColor.withValues(alpha: 0.7),
-                    ),
-                  ),
-                ],
+      backgroundColor: textColor.withValues(alpha: 0.05),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 32),
+          child: Column(
+            children: [
+              Icon(
+                Icons.voice_over_off,
+                color: textColor.withValues(alpha: 0.5),
+                size: 48,
               ),
-            ),
+              const SizedBox(height: 12),
+              Text(
+                'No voices available',
+                style: TextStyle(
+                  color: textColor.withValues(alpha: 0.7),
+                ),
+              ),
+            ],
+          ),
+        ),
           ),
         ],
       );
@@ -574,10 +574,10 @@ class _VoiceLibraryPageState extends State<VoiceLibraryPage> {
         return RepaintBoundary(
           child: VoiceCardWidget(
             key: ValueKey('${voice.id}-${voice.model ?? ''}'), // 使用稳定的 key（包含id和model以确保唯一性）
-            voice: voice,
+          voice: voice,
             isSelected: false, // 移除选中状态，因为选中即确认
             onTap: () => _onVoiceSelected(voice),
-            onPreview: () => _previewVoice(voice),
+          onPreview: () => _previewVoice(voice),
           ),
         );
       },

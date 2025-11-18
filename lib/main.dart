@@ -1,20 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:ali_auth/ali_auth.dart';
 import 'widgets/main_navigator.dart';
 import 'services/localization_service.dart';
-import 'services/ali_auth_config.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   // 初始化本地化服务
   await LocalizationService().init();
-
-  // 预初始化 AliAuth SDK
-  await _preInitializeAliAuthSdk();
   
   // 设置系统状态栏样式
   SystemChrome.setSystemUIOverlayStyle(
@@ -142,14 +136,6 @@ class _MyAppState extends State<MyApp> {
         ),
       ),
     );
-  }
-}
-
-Future<void> _preInitializeAliAuthSdk() async {
-  try {
-    await AliAuth.initSdk(AliAuthConfig.buildFullScreenConfig());
-  } catch (e) {
-    debugPrint('AliAuth SDK 预初始化失败: $e');
   }
 }
 

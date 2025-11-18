@@ -3,9 +3,9 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:ali_auth/ali_auth.dart';
+import '../config/api_keys.dart';
 import '../widgets/liquid_glass_card.dart';
 import '../services/localization_service.dart';
-import '../services/ali_auth_config.dart';
 
 /// 登录页面
 /// 使用阿里云一键登录服务
@@ -22,20 +22,23 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
   bool _isLoading = false;
   String? _errorMessage;
   String _status = '';
-  bool _listenerRegistered = false;
+  int _screenWidth = 0;
+  int _screenHeight = 0;
 
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _calculateScreenMetrics();
     _initializeAuth();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _tearDownAliAuth();
+    AliAuth.quitPage();
+    AliAuth.dispose();
     super.dispose();
   }
 
@@ -46,12 +49,20 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
     }
   }
 
-  /// 完整初始化：注册监听 + 配置 SDK
+  void _calculateScreenMetrics() {
+    final view = PlatformDispatcher.instance.views.first;
+    _screenWidth = (view.physicalSize.width / view.devicePixelRatio).floor();
+    _screenHeight = (view.physicalSize.height / view.devicePixelRatio).floor();
+  }
+
+  /// 初始化阿里云一键登录SDK（参考文档要求：先监听再初始化）
   Future<void> _initializeAuth() async {
     try {
-      if (!_listenerRegistered) {
-        _registerAliAuthListener();
-      }
+      // 2. 初始化 SDK 并配置 UI
+      await AliAuth.initSdk(_buildFullScreenConfig());
+
+      // 1. 先注册监听，确保在任何 login 之前
+      AliAuth.loginListen(onEvent: _handleLoginEvent);
 
       if (mounted) {
         setState(() {
@@ -71,32 +82,8 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
     }
   }
 
-  void _registerAliAuthListener() {
-    AliAuth.loginListen(
-      type: false,
-      onEvent: _handleLoginEvent,
-      onError: _handleLoginError,
-    );
-    _listenerRegistered = true;
-  }
-
-  Future<void> _tearDownAliAuth() async {
-    try {
-      await AliAuth.quitPage();
-    } catch (_) {}
-    try {
-      await AliAuth.dispose();
-    } catch (_) {}
-    _listenerRegistered = false;
-    _isInitialized = false;
-  }
-
   /// 一键登录（使用 loginListen 方法）
   Future<void> _oneClickLogin() async {
-    if (!_listenerRegistered) {
-      await _initializeAuth();
-    }
-
     if (!_isInitialized) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('SDK未初始化，请稍后重试')),
@@ -132,49 +119,14 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _quitAuthPage() async {
-    try {
-      await AliAuth.quitPage();
-      if (mounted) {
-        setState(() {
-          _status = '授权页已关闭';
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('关闭授权页失败: $e');
-      }
-    }
-  }
-
-  Future<void> _destroyAuthSdk() async {
-    await _tearDownAliAuth();
-    if (mounted) {
-      setState(() {
-        _status = 'AliAuth SDK 已释放';
-        _errorMessage = null;
-      });
-    }
-  }
-
-  /// 登录成功处理
-  void _handleLoginEvent(Map<dynamic, dynamic>? onEvent) async {
+  void _handleLoginEvent(Map<dynamic, dynamic> onEvent) {
     if (kDebugMode) {
       print("----------------> $onEvent <----------------");
     }
 
-    if (onEvent == null) return;
-
     final code = onEvent['code']?.toString() ?? '';
     final msg = onEvent['msg']?.toString() ?? '';
     final data = onEvent['data'];
-
-    if (code == '600024') {
-      // 600024: 需要继续执行 login
-      await AliAuth.login();
-      return;
-    }
 
     if (msg.isNotEmpty && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -224,18 +176,51 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
     }
   }
 
-  /// 登录错误处理
-  void _handleLoginError(Object? error) {
-    if (kDebugMode) {
-      print("-------------失败分割线------------$error");
-    }
-    if (mounted) {
-      setState(() {
-        _isLoading = false;
-        _errorMessage = '登录失败: $error';
-        _status = error?.toString() ?? '登录失败';
-      });
-    }
+  AliAuthModel _buildFullScreenConfig() {
+    final unit = (_screenHeight * 0.06).floor();
+    final logBtnHeight = (unit * 1.1).floor();
+    return AliAuthModel(
+      ApiKeys.aliAuthAndroidSk,
+      ApiKeys.aliAuthIosSk,
+      isDebug: kDebugMode,
+      pageType: PageType.fullPort,
+      statusBarColor: "#FFFFFF",
+      isStatusBarHidden: false,
+      navColor: "#FFFFFF",
+      navText: "本机号码一键登录",
+      navTextColor: "#191919",
+      navTextSize: 18,
+      navReturnHidden: false,
+      numberColor: "#191919",
+      numberSize: 26,
+      logBtnText: "本机号码一键登录",
+      logBtnTextSize: 16,
+      logBtnTextColor: "#FFFFFF",
+      logBtnOffsetY: logBtnHeight * 2,
+      logBtnHeight: logBtnHeight,
+      logBtnBackgroundPath: "",
+      logoHidden: true,
+      privacyState: false,
+      protocolOneName: "《用户协议》",
+      protocolOneURL: "https://example.com/user-agreement",
+      protocolTwoName: "《隐私政策》",
+      protocolTwoURL: "https://example.com/privacy",
+      protocolCustomColor: "#4CAF50",
+      protocolColor: "#9E9E9E",
+      protocolLayoutGravity: Gravity.centerHorizntal,
+      logBtnToastHidden: false,
+      sloganText: "欢迎使用阿里一键登录",
+      sloganTextColor: "#9E9E9E",
+      sloganHidden: false,
+      sloganTextSize: 12,
+      privacyTextSize: 12,
+      privacyBefore: "我已阅读并同意",
+      privacyEnd: "",
+      switchAccText: "使用其它号码登录",
+      switchAccTextColor: "#4CAF50",
+      switchAccTextSize: 14,
+      screenOrientation: -1,
+    );
   }
 
   @override
@@ -345,7 +330,7 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
                             width: double.infinity,
                             height: MediaQuery.of(context).size.height * 0.07,
                             child: ElevatedButton(
-                              onPressed: _isLoading ? null : _oneClickLogin,
+                              onPressed: _isLoading || !_isInitialized ? null : _oneClickLogin,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF4CAF50),
                                 foregroundColor: Colors.white,
@@ -364,33 +349,13 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
                                       ),
                                     )
                                   : Text(
-                                      '本机号码一键登录',
+                                      '一键登录',
                                       style: TextStyle(
                                         fontSize: MediaQuery.of(context).size.width * 0.045,
                                         fontWeight: FontWeight.w600,
                                       ),
                                     ),
                             ),
-                          ),
-
-                          const SizedBox(height: 12),
-
-                          Row(
-                            children: [
-                              Expanded(
-                                child: OutlinedButton(
-                                  onPressed: _quitAuthPage,
-                                  child: const Text('退出授权页'),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: OutlinedButton(
-                                  onPressed: _destroyAuthSdk,
-                                  child: const Text('释放SDK'),
-                                ),
-                              ),
-                            ],
                           ),
                           
                           if (_status.isNotEmpty) ...[
