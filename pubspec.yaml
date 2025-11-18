@@ -111,6 +111,7 @@ flutter:
     - referPhoto/male-2.svg
     - referPhoto/female-2.svg
     - assets/background_image.jpeg
+    - assets/background_image.jpeg
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware
 
