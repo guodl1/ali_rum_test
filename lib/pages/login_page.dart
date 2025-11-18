@@ -167,6 +167,7 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
           serverUserId = serverResult?.userId;
         } catch (e) {
           if (kDebugMode) {
+            print('Server token: ${parsed.token}');
             print('Server token exchange failed: $e');
           }
         }
@@ -251,7 +252,7 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
   }
 
   void _stopLoadingIfNeeded({String? errorMessage}) {
-    _updateState(() {
+    setState(() {
       _isLoading = false;
       _errorMessage = errorMessage;
     });
