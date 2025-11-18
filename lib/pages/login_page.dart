@@ -120,89 +120,107 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
   }
 
   void _handleLoginEvent(dynamic rawEvent) {
-    final Map<dynamic, dynamic> onEvent;
-
-    if (rawEvent is Map<dynamic, dynamic>) {
-      onEvent = rawEvent;
-    } else if (rawEvent is Map) {
-      onEvent = Map<dynamic, dynamic>.from(rawEvent);
-    } else if (rawEvent != null) {
-      onEvent = {
-        'code': rawEvent.toString(),
-        'msg': rawEvent.toString(),
-      };
-    } else {
-      onEvent = {};
-    }
+    final event = _normalizeEvent(rawEvent);
+    final code = event['code'] ?? '';
+    final message = event['msg'] ?? '';
+    final eventData = event['data'];
 
     if (kDebugMode) {
-      print("----------------> $onEvent <----------------");
+      print('AliAuth Event -> $event');
     }
 
-    final code = onEvent['code']?.toString() ?? '';
-    final msg = onEvent['msg']?.toString() ?? '';
-    final data = onEvent['data'];
-
-    if (msg.isNotEmpty && mounted) {
+    void showToast(Color color) {
+      if (!mounted || message.isEmpty) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(msg),
-          backgroundColor: code == "600000" ? Colors.green : Colors.red,
+          content: Text(message),
+          backgroundColor: color,
           duration: const Duration(seconds: 2),
         ),
       );
     }
 
-    if (code == "700005") {
-      _quitPageIfPossible();
+    switch (code) {
+      case '700000': // 点击返回
+      case '700001': // 切换账号
+        _quitPageIfPossible();
+        showToast(Colors.red);
+        _setStatus(message.isEmpty ? '用户取消' : message);
+        _stopLoadingIfNeeded(errorMessage: message.isEmpty ? '用户取消' : message);
+        break;
+
+      case '700002': // 点击登录按钮
+      case '700003': // 勾选 CheckBox
+      case '700004': // 点击协议
+      case '700005': // 点击第三方按钮
+        showToast(Colors.blueGrey);
+        _setStatus('事件($code): $message');
+        break;
+
+      case '600000': // 登录成功
+        _quitPageIfPossible();
+        final parsed = _parseLoginData(eventData);
+        if (kDebugMode && parsed.phone != null) {
+          print('AliAuth 登录手机号: ${parsed.phone}');
+        }
+        if (mounted) {
+          setState(() {
+            _isLoading = false; // 登录成功后停止loading
+            _errorMessage = null;
+            _status = '登录成功';
+          });
+          Navigator.of(context).pop({
+            'token': parsed.token,
+            if (parsed.phone != null) 'phone': parsed.phone,
+          });
+        }
+        break;
+
+      default:
+        showToast(Colors.orange);
+        _setStatus('未知事件($code): $message');
+        break;
     }
+  }
 
-    if (code == "600000" && data != null) {
-      String? token;
-      String? phoneNumber;
-
-      if (data is Map) {
-        // sdk 旧版本返回 Map
-        token = data['token']?.toString();
-        phoneNumber =
-            data['phoneNumber']?.toString() ?? data['mobile']?.toString();
-      } else if (data is String) {
-        // sdk 新版本直接返回加密字符串
-        token = data;
-      } else {
-        token = data.toString();
-      }
-
-      _quitPageIfPossible();
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _errorMessage = null;
-          _status = '登录成功';
-        });
-        Navigator.of(context).pop({
-          'token': token,
-          if (phoneNumber != null) 'phone': phoneNumber,
-        });
-      }
-      return;
+  Map<String, String> _normalizeEvent(dynamic rawEvent) {
+    if (rawEvent is Map) {
+      return rawEvent.map((key, value) => MapEntry(
+            key.toString(),
+            value?.toString() ?? '',
+          ));
     }
+    if (rawEvent == null) return {};
+    return {'code': rawEvent.toString(), 'msg': rawEvent.toString()};
+  }
 
-    if (code.isNotEmpty && code != "600000") {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _errorMessage = msg.isNotEmpty ? msg : '登录失败: $code';
-          _status = onEvent.toString();
-        });
+  ({String token, String? phone}) _parseLoginData(dynamic data) {
+    if (data is Map) {
+      final token = data['token']?.toString() ?? '';
+      final phone =
+          data['phoneNumber']?.toString() ?? data['mobile']?.toString();
+      if (kDebugMode) {
+        print('AliAuth 登录手机号: $phone');
       }
-    } else {
-      if (mounted) {
-        setState(() {
-          _status = onEvent.toString();
-        });
-      }
+      return (token: token, phone: phone);
     }
+    final token = data?.toString() ?? '';
+    return (token: token, phone: null);
+  }
+
+  void _setStatus(String text) {
+    if (!mounted) return;
+    setState(() {
+      _status = text;
+    });
+  }
+
+  void _stopLoadingIfNeeded({String? errorMessage}) {
+    if (!mounted) return;
+    setState(() {
+      _isLoading = false;
+      _errorMessage = errorMessage;
+    });
   }
 
   void _quitPageIfPossible() {
