@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:ali_auth/ali_auth.dart';
 import '../config/api_keys.dart';
 import '../widgets/liquid_glass_card.dart';
@@ -19,6 +20,7 @@ class _LoginPageState extends State<LoginPage> {
   bool _isInitialized = false;
   bool _isLoading = false;
   String? _errorMessage;
+  String _status = '';
 
 
   @override
@@ -59,50 +61,7 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  /// 处理认证结果
-  void _handleAuthResult(Map<String, dynamic>? result) {
-    if (result == null) return;
-
-    final code = result['code'] ?? 'unknown';
-    
-    if (code == '600000') {
-      // 登录成功
-      final token = result['token'];
-      final phoneNumber = result['phoneNumber'];
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('登录成功: $phoneNumber')),
-        );
-        
-        // 返回上一页
-        Navigator.of(context).pop(true);
-      }
-    } else {
-      // 登录失败或取消
-      String message = '登录失败';
-      
-      switch (code) {
-        case '700000':
-          message = '用户取消登录';
-          break;
-        case '700001':
-          message = '用户切换账号';
-          break;
-        default:
-          message = '登录失败: $code';
-      }
-      
-      if (mounted) {
-        setState(() {
-          _errorMessage = message;
-          _isLoading = false;
-        });
-      }
-    }
-  }
-
-  /// 一键登录
+  /// 一键登录（使用 loginListen 方法）
   Future<void> _oneClickLogin() async {
     if (!_isInitialized) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -114,19 +73,92 @@ class _LoginPageState extends State<LoginPage> {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
+      _status = '';
     });
 
     try {
-      // 调用一键登录（使用 AliAuth.login）
-      // 结果会通过监听器回调处理
-      await AliAuth.login();
+      // 使用 loginListen 方法，通过 onEvent 回调处理事件
+      AliAuth.loginListen(onEvent: (onEvent) {
+        if (kDebugMode) {
+          print("----------------> $onEvent <----------------");
+        }
+
+        final code = onEvent['code']?.toString() ?? '';
+        final msg = onEvent['msg']?.toString() ?? '';
+        final data = onEvent['data'];
+
+        // 显示消息提示
+        if (msg.isNotEmpty && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(msg),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+
+        // 自己关闭授权页面
+        if (code == "700005") {
+          AliAuth.quitPage();
+        }
+
+        // 登录成功处理
+        if (code == "600000" && data != null) {
+          // 可以在这里处理登录成功的数据
+          final token = data['token'];
+          final phoneNumber = data['phoneNumber'] ?? data['mobile'];
+          
+          if (mounted) {
+            setState(() {
+              _isLoading = false;
+              _errorMessage = null;
+            });
+            
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('登录成功: ${phoneNumber ?? '已登录'}'),
+                backgroundColor: Colors.green,
+                duration: const Duration(seconds: 2),
+              ),
+            );
+            
+            // 返回上一页
+            Navigator.of(context).pop(true);
+          }
+        } else if (code.isNotEmpty && code != "600000") {
+          // 其他错误情况
+          if (mounted) {
+            setState(() {
+              _isLoading = false;
+              _errorMessage = msg.isNotEmpty ? msg : '登录失败: $code';
+              _status = onEvent.toString();
+            });
+          }
+        } else {
+          // 更新状态
+          if (mounted) {
+            setState(() {
+              _status = onEvent.toString();
+            });
+          }
+        }
+      });
     } catch (e) {
-      print('一键登录错误: $e');
+      if (kDebugMode) {
+        print('一键登录错误: $e');
+      }
       if (mounted) {
         setState(() {
           _errorMessage = '登录失败: $e';
           _isLoading = false;
         });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('登录失败: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }
