@@ -6,6 +6,7 @@ import 'package:ali_auth/ali_auth.dart';
 import '../config/api_keys.dart';
 import '../widgets/liquid_glass_card.dart';
 import '../services/localization_service.dart';
+import '../services/api_service.dart';
 
 /// 登录页面
 /// 使用阿里云一键登录服务
@@ -18,6 +19,7 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
   final LocalizationService _localizationService = LocalizationService();
+  final ApiService _apiService = ApiService();
   bool _isInitialized = false;
   bool _isLoading = false;
   String? _errorMessage;
@@ -58,27 +60,24 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
   /// 初始化阿里云一键登录SDK（参考文档要求：先监听再初始化）
   Future<void> _initializeAuth() async {
     try {
-      // 2. 初始化 SDK 并配置 UI
-      // 1. 先注册监听，确保在任何 login 之前
-      await AliAuth.loginListen(onEvent: _handleLoginEvent);
+      // 先注册监听，确保在任何 login 之前
+      AliAuth.loginListen(onEvent: (event) {
+        _handleLoginEvent(event);
+      });
 
       await AliAuth.initSdk(_buildFullScreenConfig());
 
-      if (mounted) {
-        setState(() {
-          _isInitialized = true;
-        });
-      }
+      _updateState(() {
+        _isInitialized = true;
+      });
     } catch (e) {
       if (kDebugMode) {
         print('初始化阿里云一键登录失败: $e');
       }
-      if (mounted) {
-        setState(() {
-          _errorMessage = '初始化失败: $e';
-          _isInitialized = false;
-        });
-      }
+      _updateState(() {
+        _errorMessage = '初始化失败: $e';
+        _isInitialized = false;
+      });
     }
   }
 
@@ -91,7 +90,7 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
       return;
     }
 
-    setState(() {
+    _updateState(() {
       _isLoading = true;
       _errorMessage = null;
       _status = '';
@@ -104,11 +103,11 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
       if (kDebugMode) {
         print('一键登录错误: $e');
       }
+      _updateState(() {
+        _errorMessage = '登录失败: $e';
+        _isLoading = false;
+      });
       if (mounted) {
-        setState(() {
-          _errorMessage = '登录失败: $e';
-          _isLoading = false;
-        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('登录失败: $e'),
@@ -119,10 +118,10 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
     }
   }
 
-  void _handleLoginEvent(dynamic rawEvent) {
+  Future<void> _handleLoginEvent(dynamic rawEvent) async {
     final event = _normalizeEvent(rawEvent);
-    final code = event['code'] ?? '';
-    final message = event['msg'] ?? '';
+    final code = event['code']?.toString() ?? '';
+    final message = event['msg']?.toString() ?? '';
     final eventData = event['data'];
 
     if (kDebugMode) {
@@ -160,19 +159,34 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
       case '600000': // 登录成功
         _quitPageIfPossible();
         final parsed = _parseLoginData(eventData);
-        if (kDebugMode && parsed.phone != null) {
-          print('AliAuth 登录手机号: ${parsed.phone}');
+        String? serverPhone;
+        int? serverUserId;
+        try {
+          final serverResult = await _exchangeTokenWithServer(parsed.token);
+          serverPhone = serverResult?.phone;
+          serverUserId = serverResult?.userId;
+        } catch (e) {
+          if (kDebugMode) {
+            print('Server token exchange failed: $e');
+          }
         }
+
+        final phoneToPrint = parsed.phone ?? serverPhone;
+        if (kDebugMode) {
+          print('AliAuth 登录手机号: ${phoneToPrint ?? '未知'}');
+        }
+
+        _stopLoadingIfNeeded();
+        _setStatus('登录成功');
+
+        final result = {
+          'token': parsed.token,
+          if (phoneToPrint != null) 'phone': phoneToPrint,
+          if (serverUserId != null) 'user_id': serverUserId,
+        };
+
         if (mounted) {
-          setState(() {
-            _isLoading = false; // 登录成功后停止loading
-            _errorMessage = null;
-            _status = '登录成功';
-          });
-          Navigator.of(context).pop({
-            'token': parsed.token,
-            if (parsed.phone != null) 'phone': parsed.phone,
-          });
+          Navigator.of(context).pop(result);
         }
         break;
 
@@ -183,11 +197,11 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
     }
   }
 
-  Map<String, String> _normalizeEvent(dynamic rawEvent) {
+  Map<String, dynamic> _normalizeEvent(dynamic rawEvent) {
     if (rawEvent is Map) {
       return rawEvent.map((key, value) => MapEntry(
             key.toString(),
-            value?.toString() ?? '',
+            value,
           ));
     }
     if (rawEvent == null) return {};
@@ -200,7 +214,7 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
       final phone =
           data['phoneNumber']?.toString() ?? data['mobile']?.toString();
       if (kDebugMode) {
-        print('AliAuth 登录手机号: $phone');
+        print('AliAuth 登录手机号(客户端返回): $phone');
       }
       return (token: token, phone: phone);
     }
@@ -208,19 +222,47 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
     return (token: token, phone: null);
   }
 
+  Future<_ServerAuthResult?> _exchangeTokenWithServer(String token) async {
+    if (token.isEmpty) return null;
+    try {
+      final response = await _apiService.loginWithAliToken(token);
+      if (response['success'] == true) {
+        final data = response['data'] ?? {};
+        final phone = data['phone']?.toString();
+        final userIdValue = data['user_id'];
+        final userId = userIdValue is int
+            ? userIdValue
+            : int.tryParse(userIdValue?.toString() ?? '');
+        return _ServerAuthResult(token: token, phone: phone, userId: userId);
+      }
+      throw Exception(response['error'] ?? 'login_with_token_failed');
+    } catch (e) {
+      if (kDebugMode) {
+        print('登录 token 发送到服务器失败: $e');
+      }
+      return null;
+    }
+  }
+
   void _setStatus(String text) {
-    if (!mounted) return;
-    setState(() {
+    _updateState(() {
       _status = text;
     });
   }
 
   void _stopLoadingIfNeeded({String? errorMessage}) {
-    if (!mounted) return;
-    setState(() {
+    _updateState(() {
       _isLoading = false;
       _errorMessage = errorMessage;
     });
+  }
+
+  void _updateState(VoidCallback updater) {
+    if (mounted) {
+      setState(updater);
+    } else {
+      updater();
+    }
   }
 
   void _quitPageIfPossible() {
@@ -472,5 +514,29 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
       ),
     );
   }
+
+  void _setLoading(bool value) {
+    _updateState(() {
+      _isLoading = value;
+    });
+  }
+
+  void _setError(String? message) {
+    _updateState(() {
+      _errorMessage = message;
+    });
+  }
+}
+
+class _ServerAuthResult {
+  final String token;
+  final String? phone;
+  final int? userId;
+
+  const _ServerAuthResult({
+    required this.token,
+    this.phone,
+    this.userId,
+  });
 }
 

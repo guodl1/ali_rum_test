@@ -126,6 +126,26 @@ class ApiService {
     }
   }
 
+  /// 发送阿里一键登录 accessToken 给服务器，换取手机号并创建/获取账号
+  Future<Map<String, dynamic>> loginWithAliToken(String accessToken) async {
+    try {
+      final response = await _client
+          .post(
+            Uri.parse('$baseUrl/api/auth/ali/token-login'),
+            headers: {'Content-Type': 'application/json'},
+            body: json.encode({'access_token': accessToken}),
+          )
+          .timeout(Duration(milliseconds: AppConfig.receiveTimeout));
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        throw Exception('Login token exchange failed: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Login token exchange error: $e');
+    }
+  }
+
   /// 获取历史记录
   Future<List<HistoryModel>> getHistory({
     String? userId,
