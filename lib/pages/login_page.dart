@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:ali_auth/ali_auth.dart';
@@ -15,37 +16,49 @@ class LoginPage extends StatefulWidget {
   State<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage> {
+class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
   final LocalizationService _localizationService = LocalizationService();
   bool _isInitialized = false;
   bool _isLoading = false;
   String? _errorMessage;
   String _status = '';
+  int _screenWidth = 0;
+  int _screenHeight = 0;
 
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _calculateScreenMetrics();
     _initializeAuth();
   }
 
   @override
   void dispose() {
-
+    WidgetsBinding.instance.removeObserver(this);
+    AliAuth.quitPage();
+    AliAuth.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused) {
+      AliAuth.quitPage();
+    }
+  }
+
+  void _calculateScreenMetrics() {
+    final view = PlatformDispatcher.instance.views.first;
+    _screenWidth = (view.physicalSize.width / view.devicePixelRatio).floor();
+    _screenHeight = (view.physicalSize.height / view.devicePixelRatio).floor();
   }
 
   /// 初始化阿里云一键登录SDK
   Future<void> _initializeAuth() async {
     try {
-      // 初始化 SDK：使用 AliAuth 的 Dart API
-      // 请在 `lib/config/api_keys.dart` 中填写真实的 SK
-      await AliAuth.initSdk(AliAuthModel(
-        ApiKeys.aliAuthAndroidSk,
-        ApiKeys.aliAuthIosSk,
-        isDebug: true,
-      ));
-      
+      AliAuth.loginListen(onEvent: _handleLoginEvent);
       if (mounted) {
         setState(() {
           _isInitialized = true;
@@ -77,73 +90,11 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
-      // 使用 loginListen 方法，通过 onEvent 回调处理事件
-      AliAuth.loginListen(onEvent: (onEvent) {
-        if (kDebugMode) {
-          print("----------------> $onEvent <----------------");
-        }
-
-        final code = onEvent['code']?.toString() ?? '';
-        final msg = onEvent['msg']?.toString() ?? '';
-        final data = onEvent['data'];
-
-        // 显示消息提示
-        if (msg.isNotEmpty && mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(msg),
-              backgroundColor: Colors.red,
-              duration: const Duration(seconds: 2),
-            ),
-          );
-        }
-
-        // 自己关闭授权页面
-        if (code == "700005") {
-          AliAuth.quitPage();
-        }
-
-        // 登录成功处理
-        if (code == "600000" && data != null) {
-          // 可以在这里处理登录成功的数据
-          final token = data['token'];
-          final phoneNumber = data['phoneNumber'] ?? data['mobile'];
-          
-          if (mounted) {
-            setState(() {
-              _isLoading = false;
-              _errorMessage = null;
-            });
-            
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('登录成功: ${phoneNumber ?? '已登录'}'),
-                backgroundColor: Colors.green,
-                duration: const Duration(seconds: 2),
-              ),
-            );
-            
-            // 返回上一页
-            Navigator.of(context).pop(true);
-          }
-        } else if (code.isNotEmpty && code != "600000") {
-          // 其他错误情况
-          if (mounted) {
-            setState(() {
-              _isLoading = false;
-              _errorMessage = msg.isNotEmpty ? msg : '登录失败: $code';
-              _status = onEvent.toString();
-            });
-          }
-        } else {
-          // 更新状态
-          if (mounted) {
-            setState(() {
-              _status = onEvent.toString();
-            });
-          }
-        }
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
       });
+      await AliAuth.initSdk(_buildFullScreenConfig());
     } catch (e) {
       if (kDebugMode) {
         print('一键登录错误: $e');
@@ -161,6 +112,110 @@ class _LoginPageState extends State<LoginPage> {
         );
       }
     }
+  }
+
+  void _handleLoginEvent(Map<dynamic, dynamic> onEvent) {
+    if (kDebugMode) {
+      print("----------------> $onEvent <----------------");
+    }
+
+    final code = onEvent['code']?.toString() ?? '';
+    final msg = onEvent['msg']?.toString() ?? '';
+    final data = onEvent['data'];
+
+    if (msg.isNotEmpty && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(msg),
+          backgroundColor: code == "600000" ? Colors.green : Colors.red,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+
+    if (code == "700005") {
+      AliAuth.quitPage();
+    }
+
+    if (code == "600000" && data != null) {
+      final phoneNumber = data['phoneNumber'] ?? data['mobile'];
+      AliAuth.quitPage();
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = null;
+          _status = '登录成功';
+        });
+        Navigator.of(context).pop({
+          'token': data['token'],
+          'phone': phoneNumber,
+        });
+      }
+      return;
+    }
+
+    if (code.isNotEmpty && code != "600000") {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = msg.isNotEmpty ? msg : '登录失败: $code';
+          _status = onEvent.toString();
+        });
+      }
+    } else {
+      if (mounted) {
+        setState(() {
+          _status = onEvent.toString();
+        });
+      }
+    }
+  }
+
+  AliAuthModel _buildFullScreenConfig() {
+    final unit = (_screenHeight * 0.06).floor();
+    final logBtnHeight = (unit * 1.1).floor();
+    return AliAuthModel(
+      ApiKeys.aliAuthAndroidSk,
+      ApiKeys.aliAuthIosSk,
+      isDebug: kDebugMode,
+      pageType: PageType.fullPort,
+      statusBarColor: "#FFFFFF",
+      isStatusBarHidden: false,
+      navColor: "#FFFFFF",
+      navText: "本机号码一键登录",
+      navTextColor: "#191919",
+      navTextSize: 18,
+      navReturnHidden: false,
+      numberColor: "#191919",
+      numberSize: 26,
+      logBtnText: "本机号码一键登录",
+      logBtnTextSize: 16,
+      logBtnTextColor: "#FFFFFF",
+      logBtnOffsetY: logBtnHeight * 2,
+      logBtnHeight: logBtnHeight,
+      logBtnBackgroundPath: "",
+      logoHidden: true,
+      privacyState: false,
+      protocolOneName: "《用户协议》",
+      protocolOneURL: "https://example.com/user-agreement",
+      protocolTwoName: "《隐私政策》",
+      protocolTwoURL: "https://example.com/privacy",
+      protocolCustomColor: "#4CAF50",
+      protocolColor: "#9E9E9E",
+      protocolLayoutGravity: Gravity.centerHorizntal,
+      logBtnToastHidden: false,
+      sloganText: "欢迎使用阿里一键登录",
+      sloganTextColor: "#9E9E9E",
+      sloganHidden: false,
+      sloganTextSize: 12,
+      privacyTextSize: 12,
+      privacyBefore: "我已阅读并同意",
+      privacyEnd: "",
+      switchAccText: "使用其它号码登录",
+      switchAccTextColor: "#4CAF50",
+      switchAccTextSize: 14,
+      screenOrientation: -1,
+    );
   }
 
   @override
@@ -297,6 +352,18 @@ class _LoginPageState extends State<LoginPage> {
                                     ),
                             ),
                           ),
+                          
+                          if (_status.isNotEmpty) ...[
+                            const SizedBox(height: 12),
+                            Text(
+                              _status,
+                              style: TextStyle(
+                                color: textColor.withOpacity(0.8),
+                                fontSize: MediaQuery.of(context).size.width * 0.035,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
                           
                           if (!_isInitialized) ...[
                             const SizedBox(height: 16),
