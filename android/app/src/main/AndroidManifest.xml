@@ -16,7 +16,7 @@
     <uses-permission android:name="android.permission.CAMERA"/>
 
     <!-- 允许覆盖阿里一键登录相关库的最低 SDK 限制 -->
-    <uses-sdk tools:overrideLibrary="com.sean.rao.ali_auth,com.mobile.auth"/>
+    <uses-sdk tools:overrideLibrary="com.example.tingyue.ali_auth,com.mobile.auth"/>
     
     <application
         android:label="听阅"
