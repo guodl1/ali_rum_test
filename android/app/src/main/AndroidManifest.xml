@@ -47,28 +47,15 @@
             </intent-filter>
         </activity>
 
-        <!-- 自定义协议页面（来自 ali_auth 示例） -->
-        <activity
-            android:configChanges="orientation|keyboardHidden|screenSize|uiMode|fontScale"
-            android:name="com.sean.rao.aliAuth.CustomWebViewActivity"
-            android:theme="@style/AppTheme"
-            android:exported="true"
-            android:screenOrientation="sensorPortrait">
-           <intent-filter>
-               <action android:name="com.sean.rao.ali_auth_example.protocolWeb"/>
-               <category android:name="android.intent.category.DEFAULT"/>
-           </intent-filter>
-        </activity>
 
-       <!-- 协议页面 webview -->
-       <activity
-           android:name="com.mobile.auth.gatewayauth.activity.AuthWebVeiwActivity"
-           android:configChanges="orientation|keyboardHidden|screenSize"
-           tools:replace="android:theme"
-           android:exported="false"
-           android:launchMode="singleTop"
-           android:screenOrientation="behind"
-           android:theme="@style/Theme.AppCompat.Light.NoActionBar" />
+        <activity
+            android:name="com.mobile.auth.gatewayauth.activity.AuthWebVeiwActivity"
+            android:configChanges="orientation|keyboardHidden|screenSize"
+            tools:replace="android:theme"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:screenOrientation="behind"
+            android:theme="@style/authsdk_activity_dialog" />
 
        <!-- 联通/电信 授权页 -->
        <activity
