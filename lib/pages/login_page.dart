@@ -55,20 +55,28 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
     _screenHeight = (view.physicalSize.height / view.devicePixelRatio).floor();
   }
 
-  /// 初始化阿里云一键登录SDK
+  /// 初始化阿里云一键登录SDK（参考文档要求：先监听再初始化）
   Future<void> _initializeAuth() async {
     try {
+      // 1. 先注册监听，确保在任何 login 之前
       AliAuth.loginListen(onEvent: _handleLoginEvent);
+
+      // 2. 初始化 SDK 并配置 UI
+      await AliAuth.initSdk(_buildFullScreenConfig());
+
       if (mounted) {
         setState(() {
           _isInitialized = true;
         });
       }
     } catch (e) {
-      print('初始化阿里云一键登录失败: $e');
+      if (kDebugMode) {
+        print('初始化阿里云一键登录失败: $e');
+      }
       if (mounted) {
         setState(() {
           _errorMessage = '初始化失败: $e';
+          _isInitialized = false;
         });
       }
     }
@@ -90,11 +98,8 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
     });
 
     try {
-      setState(() {
-        _isLoading = true;
-        _errorMessage = null;
-      });
-      await AliAuth.initSdk(_buildFullScreenConfig());
+      // 参考文档：监听成功后直接调用 login
+      await AliAuth.login();
     } catch (e) {
       if (kDebugMode) {
         print('一键登录错误: $e');
