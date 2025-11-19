@@ -24,9 +24,9 @@ subprojects {
 subprojects {
     project.pluginManager.withPlugin("com.android.library") {
         android {
-            compileSdk = 34
+            compileSdk = 36
             defaultConfig {
-                targetSdk = 34
+                targetSdk = 36
             }
         }
     }
