@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:ali_auth/ali_auth.dart';
 import '../config/api_keys.dart';
-import '../widgets/liquid_glass_card.dart';
+
 // localization handled elsewhere
 import '../services/api_service.dart';
 
@@ -141,7 +141,6 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
         // SDK 会自动退出页面（autoQuitPage: true），无需手动调用 quitPage
         final parsed = _parseLoginData(eventData);
         final token = parsed['token'] ?? '';
-        final phoneFromClient = parsed['phone'];
 
         String? serverPhone;
         int? serverUserId;
@@ -155,7 +154,7 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
           }
         }
 
-        final phoneToPrint = phoneFromClient ?? serverPhone;
+        final phoneToPrint = serverPhone;
         if (kDebugMode) {
           print('AliAuth 登录手机号: ${phoneToPrint ?? '未知'}');
         }
@@ -265,199 +264,53 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
       // 基本配置
       isDebug: true,
       isDelay: false,
-      // 全屏页面（适配当前 LoginPage）
+      // 全屏页面
       pageType: PageType.fullPort,
       // 导航栏 / 标题
       navText: '登录',
-      navColor: '#4CAF50',
+      navColor: '#00000000', // 透明
       navTextColor: '#FFFFFF',
+      navReturnHidden: true, // 隐藏返回按钮，避免 null 资源错误
+      
       // Slogan 与 Logo
-      sloganText: '一键登录，快速开始',
-      logoImgPath: '',
+      logoHidden: true, // 隐藏 Logo，避免 null 资源错误
+      sloganHidden: true, // 隐藏 Slogan，避免 null 资源错误
+      
       // 登录按钮文案
       logBtnText: '一键登录',
       logBtnTextColor: '#FFFFFF',
+      logBtnWidth: 300,
+      logBtnHeight: 50,
+      logBtnOffsetY: 300, // 根据需要调整位置
+      
+      // 切换账号
+      switchAccHidden: true, // 隐藏切换账号，避免 null 资源错误
+
       // 页面背景与模式
-      // 注意：pageBackgroundPath 需要使用相对于 assets 的路径（去掉 'assets/' 前缀）
-      // 如果设置为空字符串，SDK 会使用默认背景，避免 FileNotFoundException
-      pageBackgroundPath: 'background_image.jpeg', // 使用相对于 assets 的路径
+      // 修复 FileNotFoundException: 使用完整的 assets 路径
+      pageBackgroundPath: 'assets/background_image.jpeg', 
       backgroundImageContentMode: ContentMode.scaleAspectFill,
+      
       // 行为配置
-      autoQuitPage: true, // 自动退出页面，登录成功或失败后自动关闭授权页
+      autoQuitPage: true, // 自动退出页面
       isHiddenToast: false, // 显示 SDK 内置 Toast
+      
+      // 隐私协议
+      privacyState: false, // 默认不勾选
+      privacyOffsetY: 10, // 距离底部距离
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final backgroundColor = isDark
-        ? const Color(0xFF191815)
-        : const Color(0xFFEEEFDF);
-    
-    final textColor = isDark
-        ? const Color(0xFFF1EEE3)
-        : const Color(0xFF191815);
-
-    
-
     return Scaffold(
-      backgroundColor: backgroundColor,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: textColor),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Text(
-          '登录',
-          style: TextStyle(color: textColor),
-        ),
-      ),
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            // 响应式布局：根据屏幕高度调整间距
-            final screenHeight = constraints.maxHeight;
-            final isSmallScreen = screenHeight < 600;
-            final topPadding = isSmallScreen ? 20.0 : 40.0;
-            final titleSpacing = isSmallScreen ? 30.0 : 60.0;
-            
-            return SingleChildScrollView(
-              padding: EdgeInsets.symmetric(
-                horizontal: MediaQuery.of(context).size.width * 0.05,
-                vertical: 20,
-              ),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: constraints.maxHeight,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    SizedBox(height: topPadding),
-                    
-                    // 标题
-                    Text(
-                      '欢迎使用',
-                      style: TextStyle(
-                        fontSize: MediaQuery.of(context).size.width * 0.08,
-                        fontWeight: FontWeight.bold,
-                        color: textColor,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '一键登录，快速开始',
-                      style: TextStyle(
-                        fontSize: MediaQuery.of(context).size.width * 0.04,
-                        color: textColor.withOpacity(0.7),
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    SizedBox(height: titleSpacing),
-              
-                    // 登录卡片
-                    LiquidGlassCard(
-                      borderRadius: 20,
-                      padding: EdgeInsets.all(MediaQuery.of(context).size.width * 0.06),
-                      backgroundColor: backgroundColor.withOpacity(0.6),
-                      child: Column(
-                        children: [
-                          if (_errorMessage != null) ...[
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: Colors.red.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.error_outline, color: Colors.red, size: 20),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      _errorMessage!,
-                                      style: const TextStyle(color: Colors.red),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                          ],
-                          
-                          // 一键登录按钮
-                          // SDK 会自动管理 loading 状态，无需手动显示
-                          SizedBox(
-                            width: double.infinity,
-                            height: MediaQuery.of(context).size.height * 0.07,
-                            child: ElevatedButton(
-                              onPressed: !_isInitialized ? null : _oneClickLogin,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF4CAF50),
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                elevation: 0,
-                              ),
-                              child: Text(
-                                '一键登录',
-                                style: TextStyle(
-                                  fontSize: MediaQuery.of(context).size.width * 0.045,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ),
-                          
-                          if (_status.isNotEmpty) ...[
-                            const SizedBox(height: 12),
-                            Text(
-                              _status,
-                              style: TextStyle(
-                                color: textColor.withOpacity(0.8),
-                                fontSize: MediaQuery.of(context).size.width * 0.035,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                          
-                          if (!_isInitialized) ...[
-                            const SizedBox(height: 16),
-                            Text(
-                              '正在初始化...',
-                              style: TextStyle(
-                                color: textColor.withOpacity(0.6),
-                                fontSize: MediaQuery.of(context).size.width * 0.035,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                    
-                    SizedBox(height: isSmallScreen ? 20.0 : 40.0),
-                    
-                    // 说明文字
-                    Text(
-                      '使用本机号码一键登录，无需输入密码',
-                      style: TextStyle(
-                        color: textColor.withOpacity(0.6),
-                        fontSize: MediaQuery.of(context).size.width * 0.035,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        ),
+      body: Center(
+        child: _isInitialized
+            ? ElevatedButton(
+                onPressed: _oneClickLogin,
+                child: const Text('唤起一键登录'),
+              )
+            : const CircularProgressIndicator(),
       ),
     );
   }
