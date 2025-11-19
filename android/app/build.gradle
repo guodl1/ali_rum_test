@@ -25,7 +25,7 @@ if (flutterVersionName == null) {
 
 android {
     namespace = "com.example.tingyue"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 34  // Updated from flutter.compileSdkVersion to support alibabacloud_rum_flutter_plugin
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -43,7 +43,7 @@ android {
         // You can update the following values to match your application needs.
         // For more information, see: https://docs.flutter.dev/deployment/android#reviewing-the-gradle-build-configuration.
         minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
+        targetSdk = 34  // Updated to match compileSdk
         versionCode = flutterVersionCode.toInteger()
         versionName = flutterVersionName
     }
