@@ -42,7 +42,7 @@ android {
         applicationId = "com.example.tingyue"
         // You can update the following values to match your application needs.
         // For more information, see: https://docs.flutter.dev/deployment/android#reviewing-the-gradle-build-configuration.
-        minSdk = flutter.minSdkVersion
+        minSdk = 31
         targetSdk = 34  // Updated to match compileSdk
         versionCode = flutterVersionCode.toInteger()
         versionName = flutterVersionName
