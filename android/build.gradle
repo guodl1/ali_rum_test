@@ -11,9 +11,10 @@ subprojects {
 }
 subprojects {
     project.evaluationDependsOn(":app")
-    
-    // Force all plugins to use compileSdk 34 to fix resource linking errors (android:attr/lStar)
-    afterEvaluate { project ->
+}
+
+subprojects {
+    project.afterEvaluate {
         if (project.hasProperty("android")) {
             project.android {
                 if (namespace == null) {
