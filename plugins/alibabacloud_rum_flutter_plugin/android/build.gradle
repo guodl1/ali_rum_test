@@ -1,0 +1,37 @@
+plugins {
+    id "com.android.library"
+}
+
+group 'com.aliyun.rum.flutter_plugin'
+version '1.0.0'
+
+rootProject.allprojects {
+    repositories {
+        mavenLocal()
+        mavenCentral()
+        google()
+        jcenter()
+    }
+}
+
+android {
+    if (project.android.hasProperty("namespace")) {
+        namespace 'com.alibabacloud.rum.flutter_plugin'
+    }
+
+    compileSdk 36
+
+    defaultConfig {
+        minSdkVersion 21
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+}
+
+dependencies {
+    // api("com.alibabacloud.rum.android:alibabacloud-rum-android-sdk:0.0.1")
+    api("com.aliyun.rum:alibabacloud-android-rum-sdk:1.0.9")
+}
