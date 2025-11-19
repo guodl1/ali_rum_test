@@ -97,12 +97,6 @@ dev_dependencies:
   flutter_lints: ^3.0.0
   flutter_launcher_icons: ^0.13.1
 
-# 使用本地修改版本的插件（修复了 compileSdk 版本问题）
-dependency_overrides:
-  alibabacloud_rum_flutter_plugin:
-    path: plugins/alibabacloud_rum_flutter_plugin
-
-
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 

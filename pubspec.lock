@@ -12,9 +12,10 @@ packages:
   alibabacloud_rum_flutter_plugin:
     dependency: "direct main"
     description:
-      path: "plugins/alibabacloud_rum_flutter_plugin"
-      relative: true
-    source: path
+      name: alibabacloud_rum_flutter_plugin
+      sha256: cb26e69e4f919d8f482a2a55ab4058cec8700a77e23002059b5c61340009a846
+      url: "https://pub.flutter-io.cn"
+    source: hosted
     version: "1.0.5"
   archive:
     dependency: transitive

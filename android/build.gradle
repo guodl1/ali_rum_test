@@ -13,25 +13,17 @@ subprojects {
     project.evaluationDependsOn(":app")
 }
 
-subprojects {
-    project.evaluationDependsOn(":app")
-}
-
-subprojects {
-    project.evaluationDependsOn(":app")
-}
-
-subprojects {
-    project.pluginManager.withPlugin("com.android.library") {
-        android {
-            compileSdk = 36
-            defaultConfig {
-                targetSdk = 36
-            }
-        }
-    }
-}
 
 tasks.register("clean", Delete) {
     delete rootProject.buildDir
+}
+
+// 强制覆盖所有插件的 compileSdkVersion
+subprojects {
+    afterEvaluate { project ->
+        if (project.plugins.hasPlugin("com.android.library")) {
+            project.android.compileSdkVersion = 34
+            project.android.defaultConfig.targetSdk = 34
+        }
+    }
 }
