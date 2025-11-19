@@ -270,34 +270,41 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
       navText: '登录',
       navColor: '#00000000', // 透明
       navTextColor: '#FFFFFF',
-      navReturnHidden: true, // 隐藏返回按钮，避免 null 资源错误
+      
+      // 必须设置图片路径，即使隐藏，否则可能报 flutter_assets/null 错误
+      navReturnImgPath: 'assets/background_image.jpeg', 
+      navReturnHidden: true, 
       
       // Slogan 与 Logo
-      logoHidden: true, // 隐藏 Logo，避免 null 资源错误
-      sloganHidden: true, // 隐藏 Slogan，避免 null 资源错误
+      logoImgPath: 'assets/background_image.jpeg',
+      logoHidden: true, 
+      sloganHidden: true, 
       
       // 登录按钮文案
       logBtnText: '一键登录',
       logBtnTextColor: '#FFFFFF',
       logBtnWidth: 300,
       logBtnHeight: 50,
-      logBtnOffsetY: 300, // 根据需要调整位置
+      logBtnOffsetY: 300, 
       
       // 切换账号
-      switchAccHidden: true, // 隐藏切换账号，避免 null 资源错误
+      switchAccHidden: true, 
 
       // 页面背景与模式
-      // 修复 FileNotFoundException: 使用完整的 assets 路径
       pageBackgroundPath: 'assets/background_image.jpeg', 
       backgroundImageContentMode: ContentMode.scaleAspectFill,
       
       // 行为配置
-      autoQuitPage: true, // 自动退出页面
-      isHiddenToast: false, // 显示 SDK 内置 Toast
+      autoQuitPage: true, 
+      isHiddenToast: false, 
       
       // 隐私协议
-      privacyState: false, // 默认不勾选
-      privacyOffsetY: 10, // 距离底部距离
+      privacyState: false, 
+      privacyOffsetY: 10, 
+      // 必须设置 Checkbox 图片路径，否则报 flutter_assets/null 错误
+      uncheckedImgPath: 'assets/background_image.jpeg',
+      checkedImgPath: 'assets/background_image.jpeg',
+      checkboxHidden: false, // 隐私协议必须勾选，通常不能完全隐藏 Checkbox，但可以自定义图标
     );
   }
 
