@@ -6,17 +6,14 @@ allprojects {
 }
 
 rootProject.buildDir = "../build"
-gradle.projectsEvaluated {
-    subprojects { subproject ->
-        if (subproject.name.contains("alibabacloud_rum_flutter_plugin")) {
-            if (subproject.plugins.hasPlugin("com.android.library")) {
-                subproject.android.compileSdkVersion = 31
-                subproject.android.defaultConfig.targetSdk = 31
-            }
-        }
-    }
-}
-
+// subprojects {
+//     afterEvaluate { project ->
+//         if (project.plugins.hasPlugin("com.android.library")) {
+//             project.android.compileSdkVersion = 34   // 或 33、35、36
+//             project.android.defaultConfig.targetSdk = 34
+//         }
+//     }
+// }
 
 subprojects {
     project.buildDir = "${rootProject.buildDir}/${project.name}"
