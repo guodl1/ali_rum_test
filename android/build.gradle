@@ -7,6 +7,15 @@ allprojects {
 
 rootProject.buildDir = "../build"
 subprojects {
+    afterEvaluate { project ->
+        if (project.plugins.hasPlugin("com.android.library")) {
+            project.android.compileSdkVersion = 34   // 或 33、35、36
+            project.android.defaultConfig.targetSdk = 34
+        }
+    }
+}
+
+subprojects {
     project.buildDir = "${rootProject.buildDir}/${project.name}"
 }
 subprojects {
