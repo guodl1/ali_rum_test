@@ -5,20 +5,9 @@ import 'package:alibabacloud_rum_flutter_plugin/alibabacloud_rum_flutter_plugin.
 import 'widgets/main_navigator.dart';
 import 'services/localization_service.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  
-  // 初始化本地化服务
-  await LocalizationService().init();
-  
-  // 设置系统状态栏样式
-  SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-    ),
-  );
-  
+void main() {
   // 初始化 Alibaba Cloud RUM SDK
+  // 注意: RUM SDK 会内部调用 WidgetsFlutterBinding.ensureInitialized() 和 runApp()
   AlibabaCloudRUM().start(const MyApp());
 }
 
@@ -32,16 +21,28 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   ThemeMode _themeMode = ThemeMode.system;
   final LocalizationService _localizationService = LocalizationService();
+  bool _isInitialized = false;
 
   @override
   void initState() {
     super.initState();
-    _initLocalization();
+    _initialize();
   }
 
-  Future<void> _initLocalization() async {
+  Future<void> _initialize() async {
+    // 初始化本地化服务
     await _localizationService.init();
-    setState(() {});
+    
+    // 设置系统状态栏样式
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+      ),
+    );
+    
+    setState(() {
+      _isInitialized = true;
+    });
   }
 
   void changeLanguage(Locale locale) {
@@ -52,6 +53,18 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
+    // 显示加载指示器直到初始化完成
+    if (!_isInitialized) {
+      return MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: Scaffold(
+          body: Center(
+            child: CircularProgressIndicator(),
+          ),
+        ),
+      );
+    }
+    
     return MaterialApp(
       title: 'TTS Reader',
       debugShowCheckedModeBanner: false,
