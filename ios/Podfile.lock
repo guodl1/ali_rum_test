@@ -3,6 +3,10 @@ PODS:
     - Flutter
     - MJExtension
     - SDWebImage
+  - alibabacloud_rum_flutter_plugin (1.0.9):
+    - AlibabaCloudRUM (= 1.0.9)
+    - Flutter
+  - AlibabaCloudRUM (1.0.9)
   - audioplayers_darwin (0.0.1):
     - Flutter
   - DKImagePickerController/Core (4.3.9):
@@ -63,6 +67,7 @@ PODS:
 
 DEPENDENCIES:
   - ali_auth (from `.symlinks/plugins/ali_auth/ios`)
+  - alibabacloud_rum_flutter_plugin (from `.symlinks/plugins/alibabacloud_rum_flutter_plugin/ios`)
   - audioplayers_darwin (from `.symlinks/plugins/audioplayers_darwin/ios`)
   - file_picker (from `.symlinks/plugins/file_picker/ios`)
   - Flutter (from `Flutter`)
@@ -75,6 +80,7 @@ DEPENDENCIES:
 
 SPEC REPOS:
   trunk:
+    - AlibabaCloudRUM
     - DKImagePickerController
     - DKPhotoGallery
     - MJExtension
@@ -84,6 +90,8 @@ SPEC REPOS:
 EXTERNAL SOURCES:
   ali_auth:
     :path: ".symlinks/plugins/ali_auth/ios"
+  alibabacloud_rum_flutter_plugin:
+    :path: ".symlinks/plugins/alibabacloud_rum_flutter_plugin/ios"
   audioplayers_darwin:
     :path: ".symlinks/plugins/audioplayers_darwin/ios"
   file_picker:
@@ -105,6 +113,8 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   ali_auth: 2e96d73f3d5378013aa3ae2011af1ef581fb8dd2
+  alibabacloud_rum_flutter_plugin: a08903d392f35169b34f787ffd64d4a17c4cbe48
+  AlibabaCloudRUM: ab1c33847dc6de0cc725183184a07c8d8d296e98
   audioplayers_darwin: ccf9c770ee768abb07e26d90af093f7bab1c12ab
   DKImagePickerController: 946cec48c7873164274ecc4624d19e3da4c1ef3c
   DKPhotoGallery: b3834fecb755ee09a593d7c9e389d8b5d6deed60

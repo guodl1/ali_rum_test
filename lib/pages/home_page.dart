@@ -116,25 +116,78 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _showUploadOptionsDialog(BuildContext context) async {
-    final result = await showDialog(
+    // 获取上传按钮的位置
+    final RenderBox? renderBox = context.findRenderObject() as RenderBox?;
+    if (renderBox == null) return;
+    
+    final offset = renderBox.localToGlobal(Offset.zero);
+    final size = renderBox.size;
+    
+    // 计算位置：在按钮下方，右对齐
+    // 按钮在右上角，所以对话框应该在按钮下方
+    final top = offset.dy + size.height + 8; // 按钮下方 8px
+    // 右对齐：按钮右边缘 - 对话框宽度
+    // offset.dx 是按钮左边缘，offset.dx + size.width 是按钮右边缘
+    final left = offset.dx + size.width - 227; 
+
+    final result = await showGeneralDialog(
       context: context,
-      builder: (context) => UploadOptionsDialog(
-        onOptionSelected: (option, {File? file, List<File>? files, String? text}) {
-          Navigator.pop(context, {
-            'option': option,
-            'file': file,
-            'files': files,
-            'text': text,
-          });
-        },
-      ),
+      barrierDismissible: true,
+      barrierLabel: '',
+      barrierColor: Colors.transparent, // 不暗置背景
+      transitionDuration: const Duration(milliseconds: 200),
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return Stack(
+          children: [
+            // 点击空白处关闭
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: () => Navigator.pop(context),
+                behavior: HitTestBehavior.translucent,
+              ),
+            ),
+            // 对话框定位在上传按钮附近
+            Positioned(
+              left: left,
+              top: top,
+              child: Material(
+                color: Colors.transparent,
+                child: RepaintBoundary(
+                  child: UploadOptionsDialog(
+                    onOptionSelected: (option, {File? file, List<File>? files, String? text}) {
+                      Navigator.pop(context, {
+                        'option': option,
+                        'file': file,
+                        'files': files,
+                        'text': text,
+                      });
+                    },
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        return FadeTransition(
+          opacity: animation,
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.95, end: 1.0).animate(
+              CurvedAnimation(parent: animation, curve: Curves.easeOut),
+            ),
+            child: child,
+          ),
+        );
+      },
     );
 
     if (result != null && mounted) {
-      final option = result['option'] as String;
-      final file = result['file'] as File?;
-      final files = result['files'] as List<File>?;
-      final textFromDialog = result['text'] as String?;
+      final resultMap = result as Map<String, dynamic>;
+      final option = resultMap['option'] as String;
+      final file = resultMap['file'] as File?;
+      final files = resultMap['files'] as List<File>?;
+      final textFromDialog = resultMap['text'] as String?;
 
       // 如果对话框直接返回了已处理的文本（dialog 已完成上传并返回text），直接跳转
       if (textFromDialog != null) {
@@ -343,7 +396,17 @@ class _HomePageState extends State<HomePage> {
         ? const Color(0xFFF1EEE3)
         : const Color(0xFF191815);
 
-    final localizations = AppLocalizations.of(context)!;
+    // 安全获取 localizations，如果为 null 则显示加载状态
+    final localizations = AppLocalizations.of(context);
+    if (localizations == null) {
+      return Scaffold(
+        backgroundColor: backgroundColor,
+        body: Center(
+          child: CircularProgressIndicator(color: textColor),
+        ),
+      );
+    }
+
     final groupedHistory = _groupHistory(_history, localizations);
 
     // 在每次构建后检查是否需要刷新历史（由生成流程设置）
@@ -425,8 +488,11 @@ class _HomePageState extends State<HomePage> {
   /// 顶部标题栏 - 参考 home-structure.json title frame
   /// 左侧：头像 (48x48)，右侧：加号按钮 (48x48)
   Widget _buildTopBar(Color textColor) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final containerWidth = (screenWidth - 40).clamp(300.0, 600.0); // 响应式宽度，最小300，最大600
+    
     return Container(
-      width: 343,
+      width: containerWidth,
       height: 48,
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       child: Row(
@@ -459,24 +525,29 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
           // 右侧加号按钮 - plus frame (48x48)
-        GestureDetector(
-          onTap: () {
-            _showUploadOptionsDialog(context);
-          },
-          child: Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: Colors.black,
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.add,
-              color: Colors.white,
-              size: 24,
-            ),
+          // 右侧加号按钮 - plus frame (48x48)
+          Builder(
+            builder: (btnContext) {
+              return GestureDetector(
+                onTap: () {
+                  _showUploadOptionsDialog(btnContext);
+                },
+                child: Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: Colors.black,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.add,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                ),
+              );
+            }
           ),
-        ),
         ],
       ),
     );
@@ -484,8 +555,11 @@ class _HomePageState extends State<HomePage> {
 
   /// 历史记录卡片 - 参考 home-structure.json 的 rounded-rectangle (307x77)
   Widget _buildHistoryCard(HistoryModel history, Color textColor) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final cardWidth = (screenWidth - 60).clamp(280.0, 500.0); // 响应式宽度
+    
     return Container(
-      width: 307,
+      width: cardWidth,
       height: 77,
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(

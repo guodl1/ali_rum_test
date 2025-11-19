@@ -26,19 +26,22 @@ class _UploadOptionsDialogState extends State<UploadOptionsDialog> {
   Widget build(BuildContext context) {
     final cardColor = const Color(0xFFE0F5DA); // rgb(224, 245, 218)
 
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Container(
-        width: 227,
-        height: 300,
-        decoration: BoxDecoration(
-          color: cardColor,
-          borderRadius: BorderRadius.circular(30),
-          border: Border.all(color: Colors.black, width: 1),
-        ),
-        child: _loading ? _buildLoading() : _buildOptions(context),
+    return Container(
+      width: 227,
+      height: 300,
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(color: Colors.black, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
+      child: _loading ? _buildLoading() : _buildOptions(context),
     );
   }
 

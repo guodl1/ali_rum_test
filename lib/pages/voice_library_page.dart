@@ -29,40 +29,19 @@ class _VoiceLibraryPageState extends State<VoiceLibraryPage> {
   String _activeFilter = 'all';
   bool _isLoading = false;
   String? _versionTag; // 存储当前版本标签
+  String? _loadingPreviewVoiceId; // 当前正在加载试听的 voice id
 
   // 缓存过滤结果，避免重复计算
   String _lastSearchKeyword = '';
   String _lastFilter = '';
 
-  // 基础语言标签
+  // 基础语言标签 - 添加普通话、粤语、英文、其他分类
   static const Map<String, String> _baseLanguageLabels = {
     'all': 'All',
-    'zh': '中文',
-    'en': 'English',
-  };
-  
-  // 动态语言标签（从云端声线中提取）
-  Map<String, String> _languageLabels = Map.from(_baseLanguageLabels);
-  
-  // 语言代码到显示名称的映射（支持基础语言代码和完整语言代码）
-  static const Map<String, String> _languageCodeToName = {
-    'zh': '中文',
-    'zh-cn': '中文',
-    'zh-tw': '繁體中文',
-    'en': 'English',
-    'en-us': 'English (US)',
-    'en-gb': 'English (UK)',
-    'ja': '日本語',
-    'ko': '한국어',
-    'fr': 'Français',
-    'de': 'Deutsch',
-    'es': 'Español',
-    'it': 'Italiano',
-    'pt': 'Português',
-    'ru': 'Русский',
-    'ar': 'العربية',
-    'th': 'ไทย',
-    'vi': 'Tiếng Việt',
+    'mandarin': '普通话',
+    'cantonese': '粤语',
+    'english': 'English',
+    'other': '其他',
   };
 
   @override
@@ -149,9 +128,6 @@ class _VoiceLibraryPageState extends State<VoiceLibraryPage> {
       
       print('[VoiceLibrary] Received ${voices.length} voices, version_tag: $finalVersionTag');
       
-      // 从声线中提取所有唯一的语言代码，并更新语言标签
-      _updateLanguageLabels(voices);
-      
       // 保存新版本标签
       if (finalVersionTag != null) {
         final prefs = await SharedPreferences.getInstance();
@@ -216,14 +192,34 @@ class _VoiceLibraryPageState extends State<VoiceLibraryPage> {
     }
 
     _lastSearchKeyword = keyword;
+    _lastFilter = _activeFilter;
     
-    print('[VoiceLibrary] Applying filters - keyword: "$keyword", voices count: ${_voices.length}');
+    print('[VoiceLibrary] Applying filters - keyword: "$keyword", filter: $_activeFilter, voices count: ${_voices.length}');
     
-    // 使用 compute 在后台线程进行过滤，避免阻塞 UI
+    // 过滤逻辑：
+    // 1. 只显示有 description 的声音
+    // 2. 根据语言分类过滤
+    // 3. 根据搜索关键词过滤
     final filtered = _voices.where((voice) {
+        // 1. 过滤掉没有 description 的声音
+        if (voice.description.isEmpty) {
+          return false;
+        }
+        
+        // 2. 语言过滤
+        if (_activeFilter != 'all') {
+          final voiceLanguage = _classifyLanguageFromVoiceId(voice.voiceId);
+          if (voiceLanguage != _activeFilter) {
+            return false;
+          }
+        }
+        
+        // 3. 关键词过滤
         final matchesKeyword = keyword.isEmpty ||
             voice.name.toLowerCase().contains(keyword) ||
-            voice.description.toLowerCase().contains(keyword);
+            voice.description.toLowerCase().contains(keyword) ||
+            voice.voiceId.toLowerCase().contains(keyword);
+        
         return matchesKeyword;
       }).toList();
 
@@ -236,45 +232,29 @@ class _VoiceLibraryPageState extends State<VoiceLibraryPage> {
     }
   }
 
-  // 从语言代码中提取基础语言代码（如 zh-CN -> zh）
-  String _extractBaseLanguage(String language) {
-    if (language.isEmpty) return language;
-    // 提取语言代码的前缀部分（如 zh-CN -> zh, en-US -> en）
-    final parts = language.split('-');
-    return parts[0].toLowerCase();
-  }
-
-  // 从声线列表中提取语言代码并更新语言标签
-  void _updateLanguageLabels(List<VoiceTypeModel> voices) {
-    // 提取所有唯一的语言代码（使用基础语言代码，如 zh-CN -> zh）
-    final Set<String> baseLanguages = voices
-        .map((v) => _extractBaseLanguage(v.language))
-        .where((lang) => lang.isNotEmpty)
-        .toSet();
+  // 从 voice_id 分类语言：Mandarin/Cantonese/English/Other
+  String _classifyLanguageFromVoiceId(String voiceId) {
+    final lowerVoiceId = voiceId.toLowerCase();
     
-    // 更新语言标签映射
-    final updatedLabels = Map<String, String>.from(_baseLanguageLabels);
-    
-    // 为每个基础语言代码添加标签
-    for (final lang in baseLanguages) {
-      if (lang.isNotEmpty && !updatedLabels.containsKey(lang)) {
-        // 使用映射表获取显示名称，如果没有则使用语言代码本身
-        final displayName = _languageCodeToName[lang] ?? lang.toUpperCase();
-        updatedLabels[lang] = displayName;
-        print('[VoiceLibrary] Added language label: $lang -> $displayName');
-      }
+    // 检查是否包含 "chinese (mandarin)" 或 "mandarin"
+    if (lowerVoiceId.contains('chinese (mandarin)') || 
+        lowerVoiceId.contains('mandarin')) {
+      return 'mandarin';
     }
     
-    // 如果语言标签有变化，更新状态
-    if (updatedLabels.length != _languageLabels.length ||
-        !updatedLabels.keys.every((k) => _languageLabels.containsKey(k) && _languageLabels[k] == updatedLabels[k])) {
-      setState(() {
-        _languageLabels = updatedLabels;
-      });
-      print('[VoiceLibrary] Updated language labels: ${_languageLabels.keys.toList()}');
+    // 检查是否包含 "cantonese"
+    if (lowerVoiceId.contains('cantonese')) {
+      return 'cantonese';
     }
+    
+    // 检查是否包含 "english"
+    if (lowerVoiceId.contains('english')) {
+      return 'english';
+    }
+    // 其他语言
+    return 'other';
   }
-
+  
   void _onVoiceSelected(VoiceTypeModel voice) {
     // 选中即确认，直接返回
     Navigator.pop(context, voice);
@@ -290,7 +270,17 @@ class _VoiceLibraryPageState extends State<VoiceLibraryPage> {
         ? const Color(0xFFF1EEE3)
         : const Color(0xFF272536);
     const accentColor = Color(0xFF3742D7);
-    final localizations = AppLocalizations.of(context)!;
+    
+    // 安全获取 localizations
+    final localizations = AppLocalizations.of(context);
+    if (localizations == null) {
+      return Scaffold(
+        backgroundColor: backgroundColor,
+        body: Center(
+          child: CircularProgressIndicator(color: textColor),
+        ),
+      );
+    }
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
@@ -442,11 +432,11 @@ class _VoiceLibraryPageState extends State<VoiceLibraryPage> {
       height: 42,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        itemCount: _languageLabels.length,
+        itemCount: _baseLanguageLabels.length,
         separatorBuilder: (_, __) => const SizedBox(width: 12),
         itemBuilder: (context, index) {
-          final key = _languageLabels.keys.elementAt(index);
-          final label = _languageLabels[key]!;
+          final key = _baseLanguageLabels.keys.elementAt(index);
+          final label = _baseLanguageLabels[key]!;
           final isActive = _activeFilter == key;
           return ChoiceChip(
             label: Text(label),
@@ -456,7 +446,8 @@ class _VoiceLibraryPageState extends State<VoiceLibraryPage> {
               setState(() {
                 _activeFilter = key;
               });
-              _loadVoices();
+              // 应用过滤而不是重新加载
+              _applyFilters(force: true);
             },
             labelStyle: TextStyle(
               color: isActive ? Colors.white : textColor.withValues(alpha: 0.7),
@@ -577,7 +568,8 @@ class _VoiceLibraryPageState extends State<VoiceLibraryPage> {
           voice: voice,
             isSelected: false, // 移除选中状态，因为选中即确认
             onTap: () => _onVoiceSelected(voice),
-          onPreview: () => _previewVoice(voice),
+            onPreview: () => _previewVoice(voice),
+            isLoading: _loadingPreviewVoiceId == voice.id,
           ),
         );
       },
@@ -585,13 +577,36 @@ class _VoiceLibraryPageState extends State<VoiceLibraryPage> {
   }
 
   Future<void> _previewVoice(VoiceTypeModel voice) async {
+    // Prevent multiple clicks
+    if (_loadingPreviewVoiceId != null) return;
+
+    setState(() {
+      _loadingPreviewVoiceId = voice.id;
+    });
+
     try {
-      await _audioService.play(voice.previewUrl);
+      String previewUrl = voice.previewUrl;
+      
+      // If previewUrl is empty or not valid, fetch from server
+      if (previewUrl.isEmpty) {
+        previewUrl = await _apiService.getVoicePreview(
+          voiceId: voice.voiceId,
+          model: voice.model,
+        );
+      }
+      
+      await _audioService.play(previewUrl);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error playing preview: $e')),
       );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loadingPreviewVoiceId = null;
+        });
+      }
     }
   }
 }

@@ -419,6 +419,43 @@ class ApiService {
     }
   }
 
+  /// 获取语音试听
+  Future<String> getVoicePreview({
+    required String voiceId,
+    String? model,
+  }) async {
+    try {
+      final response = await _client
+          .post(
+            Uri.parse('$baseUrl/api/voice-types/preview'),
+            headers: {'Content-Type': 'application/json'},
+            body: json.encode({
+              'voice_id': voiceId,
+              if (model != null) 'model': model,
+            }),
+          )
+          .timeout(Duration(milliseconds: AppConfig.receiveTimeout));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final audioUrl = data['audio_url'];
+        if (audioUrl != null) {
+          // 如果是相对路径，拼接 baseUrl
+          if (!audioUrl.startsWith('http')) {
+            return '$baseUrl$audioUrl';
+          }
+          return audioUrl;
+        } else {
+          throw Exception('No audio URL returned');
+        }
+      } else {
+        throw Exception('Get voice preview failed: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Get voice preview error: $e');
+    }
+  }
+
   void dispose() {
     _client.close();
   }

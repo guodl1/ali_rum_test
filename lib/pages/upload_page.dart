@@ -26,6 +26,66 @@ enum UploadInteractionMode {
   filePreview,
 }
 
+/// 响应式尺寸辅助类 - 统一管理跨机型适配
+class ResponsiveSizes {
+  final BuildContext context;
+  late final double screenWidth;
+  late final double screenHeight;
+  late final double safeHeight; // 减去安全区域后的高度
+  late final EdgeInsets safeArea;
+  late final bool isSmallScreen;
+  late final bool isTablet;
+  late final double aspectRatio;
+  
+  ResponsiveSizes(this.context) {
+    final mediaQuery = MediaQuery.of(context);
+    screenWidth = mediaQuery.size.width;
+    screenHeight = mediaQuery.size.height;
+    safeArea = mediaQuery.padding;
+    safeHeight = screenHeight - safeArea.top - safeArea.bottom;
+    isSmallScreen = safeHeight < 600;
+    isTablet = screenWidth > 600;
+    aspectRatio = screenHeight / screenWidth;
+  }
+  
+  // 动态间距
+  double get tinySpacing => isSmallScreen ? 4.0 : 6.0;
+  double get smallSpacing => isSmallScreen ? 8.0 : 12.0;
+  double get mediumSpacing => isSmallScreen ? 12.0 : 16.0;
+  double get largeSpacing => isSmallScreen ? 16.0 : 24.0;
+  double get extraLargeSpacing => isSmallScreen ? 24.0 : 32.0;
+  
+  // 动态高度
+  double get textPreviewHeight {
+    // 文本预览占可用高度的 35-45%，根据屏幕大小调整
+    if (isSmallScreen) {
+      return safeHeight * 0.35;
+    } else if (safeHeight > 800) {
+      return safeHeight * 0.45;
+    } else {
+      return safeHeight * 0.4;
+    }
+  }
+  
+  double get buttonHeight => isSmallScreen ? 48.0 : 56.0;
+  double get iconSize => isSmallScreen ? 20.0 : 24.0;
+  double get largeIconSize => isSmallScreen ? 28.0 : 32.0;
+  double get imagePreviewHeight => isSmallScreen ? 80.0 : 90.0;
+  double get textInputHeight => isSmallScreen ? 180.0 : 220.0;
+  
+  // 动态字体
+  double get titleFontSize => isSmallScreen ? 18.0 : 22.0;
+  double get bodyFontSize => isSmallScreen ? 14.0 : 16.0;
+  double get smallFontSize => isSmallScreen ? 12.0 : 14.0;
+  
+  // 动态内边距
+  EdgeInsets get horizontalPadding => EdgeInsets.symmetric(
+    horizontal: isTablet ? screenWidth * 0.1 : 20,
+  );
+  
+  EdgeInsets get cardPadding => EdgeInsets.all(mediumSpacing);
+}
+
 /// 上传页面
 class UploadPage extends StatefulWidget {
   final String? initialText;
@@ -143,11 +203,9 @@ class _UploadPageState extends State<UploadPage> {
 
   @override
   Widget build(BuildContext context) {
+    final sizes = ResponsiveSizes(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
-    // Figma 颜色
-    final backgroundColor = 
-    isDark
+    final backgroundColor = isDark
         ? const Color(0xFF191815) // rgb(25, 24, 21)
         : const Color(0xFFEEEFDF); // rgb(238, 238, 253)
     
@@ -163,69 +221,43 @@ class _UploadPageState extends State<UploadPage> {
     return Scaffold(
       backgroundColor: backgroundColor,
       body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final screenWidth = constraints.maxWidth;
-            final screenHeight = constraints.maxHeight;
-            final isSmallScreen = screenHeight < 600;
-            final isTablet = screenWidth > 600;
-            
-            return SingleChildScrollView(
-              padding: EdgeInsets.symmetric(
-                horizontal: isTablet ? screenWidth * 0.1 : 20,
-                vertical: isSmallScreen ? 10 : 20,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // 标题
-                  Text(
-                    'Upload',
-                    style: TextStyle(
-                      color: textColor,
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-                  
-                  // 上传选项卡片 (基于 upload-structure.json)
-                  _buildUploadOptionsCard(textColor),
-                  
-                  const SizedBox(height: 24),
-                  // 语音选择
-                  _buildVoiceSelection(),
-                  const SizedBox(height: 24),
-                  // 提取的文本预览（可滚动，超出渐隐）
-                  if (_extractedText != null && _extractedText!.isNotEmpty) _buildTextPreview(),
-                  const SizedBox(height: 24),
-                  // 生成按钮
-                  _buildGenerateButton(),
-                ],
-              ),
-            );
-          },
+        // 确保所有内容在安全区域内，底部留出额外空间避免手势条遮挡
+        minimum: EdgeInsets.only(
+          bottom: sizes.safeArea.bottom > 0 ? 0 : sizes.mediumSpacing,
+        ),
+        child: SingleChildScrollView(
+          padding: EdgeInsets.symmetric(
+            horizontal: sizes.isTablet ? sizes.screenWidth * 0.1 : 20,
+            vertical: sizes.smallSpacing,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(height: sizes.smallSpacing),
+              SizedBox(height: sizes.largeSpacing),
+              
+              // 提取的文本预览（可滚动，超出渐隐）
+              _buildTextPreview(sizes),
+              SizedBox(height: sizes.largeSpacing),
+              
+              // 语音选择
+              _buildVoiceSelection(sizes),
+              SizedBox(height: sizes.largeSpacing),
+              
+              // 生成按钮
+              _buildGenerateButton(sizes),
+              
+              // 底部额外间距，确保按钮不被遮挡
+              SizedBox(height: sizes.mediumSpacing),
+            ],
+          ),
         ),
       ),
     );
   }
 
   /// 基于 upload-structure.json 的上传选项卡片
-  Widget _buildUploadOptionsCard(Color textColor) {
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 300),
-      child: SizedBox(
-        key: ValueKey(_interactionMode),
-        height: _cardHeight,
-            child:  _buildTextPreview(),
-          ),
-        );
-      // },
-    //       ),
-    //     ),
-    //   // ),
-    // );
-  }
+
 
   Widget _buildDefaultOptionsContent(Color textColor) {
     return Column(
@@ -814,7 +846,7 @@ class _UploadPageState extends State<UploadPage> {
 
 
 
-  Widget _buildVoiceSelection() {
+  Widget _buildVoiceSelection(ResponsiveSizes sizes) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -822,121 +854,179 @@ class _UploadPageState extends State<UploadPage> {
           'Select Voice',
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w600,
+                fontSize: sizes.titleFontSize,
               ),
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: sizes.smallSpacing),
         LiquidGlassCard(
           onTap: () => _navigateToVoiceLibrary(),
-          child: Row(
-            children: [
-              Icon(
-                Icons.record_voice_over,
-                size: 32,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  _selectedVoice?.name ?? 'Choose a voice',
-                  style: const TextStyle(fontSize: 16),
+          child: Padding(
+            padding: sizes.cardPadding,
+            child: Row(
+              children: [
+                Icon(
+                  Icons.record_voice_over,
+                  size: sizes.largeIconSize,
+                  color: Theme.of(context).colorScheme.primary,
                 ),
-              ),
-              Icon(
-                Icons.arrow_forward_ios,
-                size: 16,
-                color: Colors.grey[400],
-              ),
-            ],
+                SizedBox(width: sizes.smallSpacing),
+                Expanded(
+                  child: Text(
+                    _selectedVoice?.name ?? 'Choose a voice',
+                    style: TextStyle(fontSize: sizes.bodyFontSize),
+                  ),
+                ),
+                Icon(
+                  Icons.arrow_forward_ios,
+                  size: sizes.iconSize * 0.75,
+                  color: Colors.grey[400],
+                ),
+              ],
+            ),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildTextPreview() {
-    final screenHeight = MediaQuery.of(context).size.height;
-    final previewHeight = screenHeight < 600 ? 200.0 : 300.0;
-    
+  Widget _buildTextPreview(ResponsiveSizes sizes) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        LiquidGlassCard(
-          child: SizedBox(
-            height: previewHeight,
-            child: Column(
-              children: [
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: TextField(
-                      controller: _previewTextController,
-                      keyboardType: TextInputType.multiline,
-                      maxLines: null,
-                      expands: true,
-                      textAlignVertical: TextAlignVertical.top,
-                      decoration: const InputDecoration(
-                        border: InputBorder.none,
-                        hintText: '在此输入或编辑文本...',
-                      ),
-                      onChanged: (text) {
-                        setState(() {
-                          _extractedText = text;
-                        });
-                      },
-                    ),
+        SizedBox(
+          height: sizes.textPreviewHeight,
+          child: Column(
+            children: [
+              Expanded(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: sizes.smallSpacing,
                   ),
-                ),
-                // 底部工具栏：设为起点、删除选中、插入文本、显示起点位置
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final isSmall = constraints.maxWidth < 400;
-                      return isSmall
-                          ? Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              children: [
-                                OutlinedButton(
-                                  onPressed: _setPlayStartFromSelection,
-                                  child: const Text('设为起点', style: TextStyle(fontSize: 12)),
-                                ),
-                                OutlinedButton(
-                                  onPressed: _deleteSelectionInPreview,
-                                  child: const Text('删除选中', style: TextStyle(fontSize: 12)),
-                                ),
-                                OutlinedButton(
-                                  onPressed: _insertTextAtCursor,
-                                  child: const Text('插入文本', style: TextStyle(fontSize: 12)),
-                                ),
-                                Text('起点: ${_playStartIndex}', style: const TextStyle(fontSize: 12)),
-                              ],
-                            )
-                          : Row(
-                              children: [
-                                OutlinedButton(
-                                  onPressed: _setPlayStartFromSelection,
-                                  child: const Text('设为起点'),
-                                ),
-                                const SizedBox(width: 8),
-                                OutlinedButton(
-                                  onPressed: _deleteSelectionInPreview,
-                                  child: const Text('删除选中'),
-                                ),
-                                const SizedBox(width: 8),
-                                OutlinedButton(
-                                  onPressed: _insertTextAtCursor,
-                                  child: const Text('插入文本'),
-                                ),
-                                const Spacer(),
-                                Text('起点: ${_playStartIndex}'),
-                              ],
-                            );
+                  child: TextField(
+                    controller: _previewTextController,
+                    keyboardType: TextInputType.multiline,
+                    maxLines: null,
+                    expands: true,
+                    textAlignVertical: TextAlignVertical.top,
+                    style: TextStyle(
+                      fontSize: sizes.bodyFontSize,
+                      height: 1.5,
+                      color: Theme.of(context).textTheme.bodyLarge?.color?.withOpacity(0.8),
+                    ),
+                    decoration: const InputDecoration(
+                      border: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      errorBorder: InputBorder.none,
+                      disabledBorder: InputBorder.none,
+                      hintText: '在此输入或编辑文本...',
+                      hintStyle: TextStyle(color: Colors.grey),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                    onChanged: (text) {
+                      setState(() {
+                        _extractedText = text;
+                      });
                     },
                   ),
                 ),
-              ],
-            ),
+              ),
+              // 底部工具栏：设为起点、删除选中、插入文本、显示起点位置
+              Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: 0,
+                  vertical: sizes.tinySpacing,
+                ),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isSmall = constraints.maxWidth < 400;
+                    return isSmall
+                        ? Wrap(
+                            spacing: sizes.tinySpacing,
+                            runSpacing: sizes.tinySpacing,
+                            children: [
+                              TextButton(
+                                onPressed: _setPlayStartFromSelection,
+                                child: Text(
+                                  '设为起点',
+                                  style: TextStyle(
+                                    fontSize: sizes.smallFontSize,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: _deleteSelectionInPreview,
+                                child: Text(
+                                  '删除选中',
+                                  style: TextStyle(
+                                    fontSize: sizes.smallFontSize,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: _insertTextAtCursor,
+                                child: Text(
+                                  '插入文本',
+                                  style: TextStyle(
+                                    fontSize: sizes.smallFontSize,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ),
+                              Padding(
+                                padding: EdgeInsets.only(
+                                  top: sizes.smallSpacing,
+                                  left: sizes.tinySpacing,
+                                ),
+                                child: Text(
+                                  '起点: $_playStartIndex',
+                                  style: TextStyle(
+                                    fontSize: sizes.smallFontSize,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          )
+                        : Row(
+                            children: [
+                              TextButton(
+                                onPressed: _setPlayStartFromSelection,
+                                child: const Text(
+                                  '设为起点',
+                                  style: TextStyle(color: Colors.grey),
+                                ),
+                              ),
+                              SizedBox(width: sizes.tinySpacing),
+                              TextButton(
+                                onPressed: _deleteSelectionInPreview,
+                                child: const Text(
+                                  '删除选中',
+                                  style: TextStyle(color: Colors.grey),
+                                ),
+                              ),
+                              SizedBox(width: sizes.tinySpacing),
+                              TextButton(
+                                onPressed: _insertTextAtCursor,
+                                child: const Text(
+                                  '插入文本',
+                                  style: TextStyle(color: Colors.grey),
+                                ),
+                              ),
+                              const Spacer(),
+                              Text(
+                                '起点: $_playStartIndex',
+                                style: const TextStyle(color: Colors.grey),
+                              ),
+                            ],
+                          );
+                  },
+                ),
+              ),
+            ],
           ),
         ),
       ],
@@ -996,54 +1086,80 @@ class _UploadPageState extends State<UploadPage> {
     });
   }
 
-  Widget _buildGenerateButton() {
+  Widget _buildGenerateButton(ResponsiveSizes sizes) {
     final canGenerate = !_isUploading && _selectedVoice != null && (_selectedFile != null || (_extractedText != null && _extractedText!.isNotEmpty));
     final text = _previewTextController.text;
     final hasText = text.trim().isNotEmpty;
     
-    return Stack(
-      children: [
-        ElevatedButton(
-          onPressed: canGenerate && hasText ? _generateAudio : null,
-          style: ElevatedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+    return SizedBox(
+      height: sizes.buttonHeight,
+      child: Stack(
+        children: [
+          ElevatedButton(
+            onPressed: canGenerate && hasText ? _generateAudio : null,
+            style: ElevatedButton.styleFrom(
+              padding: EdgeInsets.symmetric(vertical: sizes.mediumSpacing),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(sizes.buttonHeight / 4),
+              ),
+              backgroundColor: canGenerate && hasText ? Colors.green : Colors.grey,
+              disabledBackgroundColor: Colors.grey,
             ),
-            backgroundColor: canGenerate && hasText ? Colors.green : Colors.grey,
-            disabledBackgroundColor: Colors.grey,
-          ),
-          child: SizedBox(
-            width: double.infinity,
-            child: Center(
-              child: Text(
-                _isUploading ? 'Generating... ${(_generateProgress * 100).toStringAsFixed(0)}%' : 'Generate Audio',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
+            child: SizedBox(
+              width: double.infinity,
+              child: Center(
+                child: _isUploading
+                    ? Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: sizes.iconSize,
+                            height: sizes.iconSize,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          ),
+                          SizedBox(width: sizes.smallSpacing),
+                          Text(
+                            'Generating... ${(_generateProgress * 100).toStringAsFixed(0)}%',
+                            style: TextStyle(
+                              fontSize: sizes.bodyFontSize,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      )
+                    : Text(
+                        'Generate Audio',
+                        style: TextStyle(
+                          fontSize: sizes.bodyFontSize,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
               ),
             ),
           ),
-        ),
-        // 绿色进度填充
-        if (_isUploading && _generateProgress > 0)
-          Positioned.fill(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: FractionallySizedBox(
-                  widthFactor: _generateProgress,
-                  child: Container(
-                    color: Colors.green.withOpacity(0.3),
+          // 绿色进度填充
+          if (_isUploading && _generateProgress > 0)
+            Positioned.fill(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(sizes.buttonHeight / 4),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: FractionallySizedBox(
+                    widthFactor: _generateProgress,
+                    child: Container(
+                      color: Colors.green.withOpacity(0.3),
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 

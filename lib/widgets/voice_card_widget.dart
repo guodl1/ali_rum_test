@@ -9,6 +9,7 @@ class VoiceCardWidget extends StatelessWidget {
   final VoidCallback? onTap;
   final VoidCallback? onPreview;
   final bool isSelected;
+  final bool isLoading;
 
   const VoiceCardWidget({
     Key? key,
@@ -16,6 +17,7 @@ class VoiceCardWidget extends StatelessWidget {
     this.onTap,
     this.onPreview,
     this.isSelected = false,
+    this.isLoading = false,
   }) : super(key: key);
 
   @override
@@ -149,7 +151,7 @@ class VoiceCardWidget extends StatelessWidget {
               const SizedBox(width: 16),
               // 右侧播放按钮
               GestureDetector(
-                onTap: onPreview,
+                onTap: isLoading ? null : onPreview,
                 child: Container(
                   width: 36,
                   height: 36,
@@ -158,18 +160,27 @@ class VoiceCardWidget extends StatelessWidget {
                     border: Border.all(
                       color: const Color(0xFF757575),
                       width: 4,
-              ),
+                    ),
                   ),
                   child: Center(
-                    child: Icon(
-                      Icons.play_arrow,
-                      color: const Color(0xFF757575),
-                      size: 24,
-                    ),
+                    child: isLoading
+                        ? SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(const Color(0xFF757575)),
+                            ),
+                          )
+                        : Icon(
+                            Icons.play_arrow,
+                            color: const Color(0xFF757575),
+                            size: 24,
+                          ),
+                  ),
+                ),
               ),
-            ),
-          ),
-        ],
+            ],
           ),
         ),
       ),
