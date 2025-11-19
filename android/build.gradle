@@ -12,12 +12,18 @@ tasks.register("clean", Delete) {
     delete rootProject.buildDir
 }
 
-// 强制覆盖所有插件的 compileSdkVersion
+// 强制覆盖所有插件的 compileSdkVersion 和 Java 版本
 subprojects {
     afterEvaluate { project ->
         if (project.plugins.hasPlugin("com.android.library")) {
             project.android.compileSdkVersion = 34
             project.android.defaultConfig.targetSdk = 34
+            
+            // 设置 Java 版本为 17
+            project.android.compileOptions {
+                sourceCompatibility = JavaVersion.VERSION_17
+                targetCompatibility = JavaVersion.VERSION_17
+            }
         }
     }
 }
