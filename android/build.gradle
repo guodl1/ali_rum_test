@@ -16,8 +16,8 @@ tasks.register("clean", Delete) {
 subprojects {
     afterEvaluate { project ->
         if (project.plugins.hasPlugin("com.android.library")) {
-            project.android.compileSdkVersion = 34
-            project.android.defaultConfig.targetSdk = 34
+            project.android.compileSdkVersion = 36
+            project.android.defaultConfig.targetSdk = 36
             
             // 设置 Java 版本为 17
             project.android.compileOptions {
