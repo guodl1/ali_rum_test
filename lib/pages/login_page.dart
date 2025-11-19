@@ -1,11 +1,10 @@
 import 'dart:async';
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:ali_auth/ali_auth.dart';
 import '../config/api_keys.dart';
 import '../widgets/liquid_glass_card.dart';
-import '../services/localization_service.dart';
+// localization handled elsewhere
 import '../services/api_service.dart';
 
 /// 登录页面
@@ -18,44 +17,31 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
-  final LocalizationService _localizationService = LocalizationService();
   final ApiService _apiService = ApiService();
   bool _isInitialized = false;
-  bool _isLoading = false;
   String? _errorMessage;
   String _status = '';
-  int _screenWidth = 0;
-  int _screenHeight = 0;
-
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _calculateScreenMetrics();
     _initializeAuth();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _quitPageIfPossible();
     _disposeSdkIfNeeded();
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused) {
-      _quitPageIfPossible();
-    }
+    // SDK 会自动管理页面生命周期，无需手动处理
   }
 
-  void _calculateScreenMetrics() {
-    final view = PlatformDispatcher.instance.views.first;
-    _screenWidth = (view.physicalSize.width / view.devicePixelRatio).floor();
-    _screenHeight = (view.physicalSize.height / view.devicePixelRatio).floor();
-  }
+  
 
   /// 初始化阿里云一键登录SDK（参考文档要求：先监听再初始化）
   Future<void> _initializeAuth() async {
@@ -81,7 +67,7 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
     }
   }
 
-  /// 一键登录（使用 loginListen 方法）
+  /// 一键登录（SDK 自动管理 loading 和页面退出）
   Future<void> _oneClickLogin() async {
     if (!_isInitialized) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -90,14 +76,8 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
       return;
     }
 
-    _updateState(() {
-      _isLoading = true;
-      _errorMessage = null;
-      _status = '';
-    });
-
     try {
-      // 参考文档：监听成功后直接调用 login
+      // SDK 会自动显示 loading，登录成功后自动退出页面（autoQuitPage: true）
       await AliAuth.login();
     } catch (e) {
       if (kDebugMode) {
@@ -105,7 +85,6 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
       }
       _updateState(() {
         _errorMessage = '登录失败: $e';
-        _isLoading = false;
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -142,10 +121,12 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
     switch (code) {
       case '700000': // 点击返回
       case '700001': // 切换账号
-        _quitPageIfPossible();
+        // 用户取消登录，SDK 会自动退出页面（autoQuitPage: true）
         showToast(Colors.red);
         _setStatus(message.isEmpty ? '用户取消' : message);
-        _stopLoadingIfNeeded(errorMessage: message.isEmpty ? '用户取消' : message);
+        _updateState(() {
+          _errorMessage = message.isEmpty ? '用户取消' : message;
+        });
         break;
 
       case '700002': // 点击登录按钮
@@ -157,37 +138,46 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
         break;
 
       case '600000': // 登录成功
-        _quitPageIfPossible();
+        // SDK 会自动退出页面（autoQuitPage: true），无需手动调用 quitPage
+        final parsed = _parseLoginData(eventData);
+        final token = parsed['token'] ?? '';
+        final phoneFromClient = parsed['phone'];
+
         String? serverPhone;
         int? serverUserId;
         try {
-          final serverResult = await _exchangeTokenWithServer(eventData);
+          final serverResult = await _exchangeTokenWithServer(token);
           serverPhone = serverResult?.phone;
           serverUserId = serverResult?.userId;
         } catch (e) {
           if (kDebugMode) {
-            print('Server token: ${parsed.token}');
             print('Server token exchange failed: $e');
           }
         }
 
-        final phoneToPrint = parsed.phone ?? serverPhone;
+        final phoneToPrint = phoneFromClient ?? serverPhone;
         if (kDebugMode) {
           print('AliAuth 登录手机号: ${phoneToPrint ?? '未知'}');
         }
 
-        _stopLoadingIfNeeded();
         _setStatus('登录成功');
+        _updateState(() {
+          _errorMessage = null; // 清除错误信息
+        });
 
         final result = {
-          'token': parsed.token,
+          'token': token,
           if (phoneToPrint != null) 'phone': phoneToPrint,
           if (serverUserId != null) 'user_id': serverUserId,
         };
 
-        if (mounted) {
-          Navigator.of(context).pop(result);
-        }
+        // 等待 SDK 自动退出页面后再返回结果
+        // 使用 Future.delayed 确保页面已退出
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (mounted) {
+            Navigator.of(context).pop(result);
+          }
+        });
         break;
 
       default:
@@ -208,16 +198,17 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
     return {'code': rawEvent.toString(), 'msg': rawEvent.toString()};
   }
 
-  ({String token, String? phone}) _parseLoginData(dynamic data) {
+  Map<String, String?> _parseLoginData(dynamic data) {
     if (data is Map) {
       final token = data['token']?.toString() ?? '';
+      final phone = data['phone']?.toString();
       if (kDebugMode) {
-        print('AliAuth 登录手机号(客户端返回): $phone');
+        print('AliAuth 登录手机号(客户端返回): ${phone ?? '未知'}');
       }
-      return (token: token, phone: phone);
+      return {'token': token, 'phone': phone};
     }
     final token = data?.toString() ?? '';
-    return (token: token, phone: null);
+    return {'token': token, 'phone': null};
   }
 
   Future<_ServerAuthResult?> _exchangeTokenWithServer(String token) async {
@@ -248,28 +239,12 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
     });
   }
 
-  void _stopLoadingIfNeeded({String? errorMessage}) {
-    setState(() {
-      _isLoading = false;
-      _errorMessage = errorMessage;
-    });
-  }
-
   void _updateState(VoidCallback updater) {
     if (mounted) {
       setState(updater);
     } else {
       updater();
     }
-  }
-
-  void _quitPageIfPossible() {
-    if (!_isInitialized) return;
-    AliAuth.quitPage().catchError((error) {
-      if (kDebugMode) {
-        print('quitPage 调用失败: $error');
-      }
-    });
   }
 
   void _disposeSdkIfNeeded() {
@@ -284,51 +259,32 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
   }
 
   AliAuthModel _buildFullScreenConfig() {
-    final unit = (_screenHeight * 0.06).floor();
-    final logBtnHeight = (unit * 1.1).floor();
     return AliAuthModel(
       ApiKeys.aliAuthAndroidSk,
       ApiKeys.aliAuthIosSk,
-      isDebug: kDebugMode,
+      // 基本配置
+      isDebug: true,
+      isDelay: false,
+      // 全屏页面（适配当前 LoginPage）
       pageType: PageType.fullPort,
-      statusBarColor: "#FFFFFF",
-      isStatusBarHidden: false,
-      navColor: "#FFFFFF",
-      navText: "本机号码一键登录",
-      navTextColor: "#191919",
-      navTextSize: 18,
-      navReturnHidden: false,
-      numberColor: "#191919",
-      numberSize: 26,
-      logBtnText: "本机号码一键登录",
-      logBtnTextSize: 16,
-      logBtnTextColor: "#FFFFFF",
-      logBtnOffsetY: logBtnHeight * 2,
-      logBtnHeight: logBtnHeight,
-      logBtnBackgroundPath: "",
-      logoHidden: true,
-      privacyState: false,
-      protocolOneName: "《用户协议》",
-      protocolOneURL: "https://tunderly.com",
-      protocolTwoName: "《隐私政策》",
-      protocolTwoURL: "https://jokui.com",
-      protocolCustomColor: "#4CAF50",
-      protocolColor: "#9E9E9E",
-      protocolLayoutGravity: Gravity.centerHorizntal,
-      logBtnToastHidden: false,
-      sloganText: "欢迎使用阿里一键登录",
-      sloganTextColor: "#9E9E9E",
-      sloganHidden: false,
-      sloganTextSize: 12,
-      privacyTextSize: 12,
-      privacyBefore: "我已阅读并同意",
-      privacyEnd: "",
-      switchAccText: "使用其它号码登录",
-      switchAccTextColor: "#4CAF50",
-      switchAccTextSize: 14,
-      screenOrientation: -1,
-      pageBackgroundPath: "assets/background_image.jpeg",
-      autoQuitPage: true,
+      // 导航栏 / 标题
+      navText: '登录',
+      navColor: '#4CAF50',
+      navTextColor: '#FFFFFF',
+      // Slogan 与 Logo
+      sloganText: '一键登录，快速开始',
+      logoImgPath: '',
+      // 登录按钮文案
+      logBtnText: '一键登录',
+      logBtnTextColor: '#FFFFFF',
+      // 页面背景与模式
+      // 注意：pageBackgroundPath 需要使用相对于 assets 的路径（去掉 'assets/' 前缀）
+      // 如果设置为空字符串，SDK 会使用默认背景，避免 FileNotFoundException
+      pageBackgroundPath: 'background_image.jpeg', // 使用相对于 assets 的路径
+      backgroundImageContentMode: ContentMode.scaleAspectFill,
+      // 行为配置
+      autoQuitPage: true, // 自动退出页面，登录成功或失败后自动关闭授权页
+      isHiddenToast: false, // 显示 SDK 内置 Toast
     );
   }
 
@@ -343,7 +299,7 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
         ? const Color(0xFFF1EEE3)
         : const Color(0xFF191815);
 
-    final localizations = AppLocalizations.of(context)!;
+    
 
     return Scaffold(
       backgroundColor: backgroundColor,
@@ -435,11 +391,12 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
                           ],
                           
                           // 一键登录按钮
+                          // SDK 会自动管理 loading 状态，无需手动显示
                           SizedBox(
                             width: double.infinity,
                             height: MediaQuery.of(context).size.height * 0.07,
                             child: ElevatedButton(
-                              onPressed: _isLoading || !_isInitialized ? null : _oneClickLogin,
+                              onPressed: !_isInitialized ? null : _oneClickLogin,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF4CAF50),
                                 foregroundColor: Colors.white,
@@ -448,22 +405,13 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
                                 ),
                                 elevation: 0,
                               ),
-                              child: _isLoading
-                                  ? const SizedBox(
-                                      width: 24,
-                                      height: 24,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                      ),
-                                    )
-                                  : Text(
-                                      '一键登录',
-                                      style: TextStyle(
-                                        fontSize: MediaQuery.of(context).size.width * 0.045,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
+                              child: Text(
+                                '一键登录',
+                                style: TextStyle(
+                                  fontSize: MediaQuery.of(context).size.width * 0.045,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                             ),
                           ),
                           
@@ -514,17 +462,7 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
     );
   }
 
-  void _setLoading(bool value) {
-    _updateState(() {
-      _isLoading = value;
-    });
-  }
-
-  void _setError(String? message) {
-    _updateState(() {
-      _errorMessage = message;
-    });
-  }
+  
 }
 
 class _ServerAuthResult {
