@@ -20,7 +20,7 @@
     
     <application
         android:label="听阅"
-        android:name="${applicationName}"
+        android:name=".MyApplication"
         android:icon="@mipmap/ic_launcher">
 
         <!-- Flutter 主入口 Activity -->

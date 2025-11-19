@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:alibabacloud_rum_flutter_plugin/alibabacloud_rum_flutter_plugin.dart';
 import 'widgets/main_navigator.dart';
 import 'services/localization_service.dart';
 
@@ -17,7 +18,8 @@ void main() async {
     ),
   );
   
-  runApp(const MyApp());
+  // 初始化 Alibaba Cloud RUM SDK
+  AlibabaCloudRUM().start(const MyApp());
 }
 
 class MyApp extends StatefulWidget {
