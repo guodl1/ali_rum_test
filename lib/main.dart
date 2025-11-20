@@ -1,14 +1,17 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+
 import 'package:alibabacloud_rum_flutter_plugin/alibabacloud_rum_flutter_plugin.dart';
 import 'widgets/main_navigator.dart';
-import 'services/localization_service.dart';
 
 void main() {
-  // 初始化 Alibaba Cloud RUM SDK
-  // 注意: RUM SDK 会内部调用 WidgetsFlutterBinding.ensureInitialized() 和 runApp()
-  AlibabaCloudRUM().start(const MyApp());
+  // 在 iOS 和 Android 平台启动 Alibaba Cloud RUM，鸿蒙平台不启动
+  if (Platform.isIOS || Platform.isAndroid) {
+    AlibabaCloudRUM().start(const MyApp());
+  } else {
+    runApp(const MyApp());
+  }
 }
 
 class MyApp extends StatefulWidget {
@@ -20,7 +23,7 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   ThemeMode _themeMode = ThemeMode.system;
-  final LocalizationService _localizationService = LocalizationService();
+
   bool _isInitialized = false;
 
   @override
@@ -30,9 +33,7 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _initialize() async {
-    // 初始化本地化服务
-    await _localizationService.init();
-    
+    // Localization initialization removed
     // 设置系统状态栏样式
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
@@ -45,11 +46,7 @@ class _MyAppState extends State<MyApp> {
     });
   }
 
-  void changeLanguage(Locale locale) {
-    setState(() {
-      _localizationService.changeLocale(locale);
-    });
-  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -69,15 +66,7 @@ class _MyAppState extends State<MyApp> {
       title: 'TTS Reader',
       debugShowCheckedModeBanner: false,
       
-      // 多语言配置
-      locale: _localizationService.currentLocale,
-      supportedLocales: LocalizationService.supportedLocales,
-      localizationsDelegates: const [
-        AppLocalizationsDelegate(),
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
+  
       
       // 主题配置
       theme: _buildLightTheme(),

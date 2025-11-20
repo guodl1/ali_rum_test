@@ -33,8 +33,24 @@
         ]
       }
     ],
+    "metadata": [ // 配置信息如下
+      {
+        "name": "client_id",
+        "value": "6917589735223596257" // 将上一步获取到的Client ID赋值给value，请注意不要使用其他方式设置value值。
+      }
+    ],
     "requestPermissions": [
-      {"name" :  "ohos.permission.INTERNET"},
+      {
+        "name": "ohos.permission.INTERNET",
+        "reason": "$string:reason_internet",
+        "usedScene": {
+          "abilities": [
+            "EntryAbility"
+          ],
+          "when": "inuse"
+        }
+      }
+ 
     ]
   }
 }

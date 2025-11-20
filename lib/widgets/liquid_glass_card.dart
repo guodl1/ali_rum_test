@@ -1,11 +1,15 @@
+import 'dart:io';
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'liquid_glass_card_ohos.dart';
 
 /// 液态玻璃卡片组件
-/// 使用 liquid_glass_renderer 包实现液态玻璃效果
+/// 自动根据平台选择实现：
+/// - HarmonyOS: 使用 LiquidGlassCardOhos (liquid_glass_effect)
+/// - 其他平台: 使用 _LiquidGlassCardDefault (liquid_glass_renderer)
 class LiquidGlassCard extends StatelessWidget {
   final Widget child;
   final double? width;
@@ -20,6 +24,68 @@ class LiquidGlassCard extends StatelessWidget {
   final bool enableAdvancedEffect;
 
   const LiquidGlassCard({
+    Key? key,
+    required this.child,
+    this.width,
+    this.height,
+    this.padding,
+    this.margin,
+    this.onTap,
+    this.backgroundColor,
+    this.borderRadius = 16.0,
+    this.blurIntensity = 10.0,
+    this.thickness = 15.0,
+    this.enableAdvancedEffect = true,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    // HarmonyOS 平台使用专用实现
+    if (!kIsWeb && Platform.operatingSystem == 'ohos') {
+      return LiquidGlassCardOhos(
+        width: width,
+        height: height,
+        padding: padding,
+        margin: margin,
+        onTap: onTap,
+        backgroundColor: backgroundColor,
+        borderRadius: borderRadius,
+        blurIntensity: blurIntensity,
+        thickness: thickness,
+        child: child,
+      );
+    }
+
+    return _LiquidGlassCardDefault(
+      width: width,
+      height: height,
+      padding: padding,
+      margin: margin,
+      onTap: onTap,
+      backgroundColor: backgroundColor,
+      borderRadius: borderRadius,
+      blurIntensity: blurIntensity,
+      thickness: thickness,
+      enableAdvancedEffect: enableAdvancedEffect,
+      child: child,
+    );
+  }
+}
+
+class _LiquidGlassCardDefault extends StatelessWidget {
+  final Widget child;
+  final double? width;
+  final double? height;
+  final EdgeInsetsGeometry? padding;
+  final EdgeInsetsGeometry? margin;
+  final VoidCallback? onTap;
+  final Color? backgroundColor;
+  final double borderRadius;
+  final double blurIntensity;
+  final double thickness;
+  final bool enableAdvancedEffect;
+
+  const _LiquidGlassCardDefault({
     Key? key,
     required this.child,
     this.width,

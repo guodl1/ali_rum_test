@@ -31,8 +31,6 @@ dependencies:
   flutter:
     sdk: flutter
   
-  flutter_localizations:
-    sdk: flutter
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -63,7 +61,8 @@ dependencies:
   provider: ^6.1.1
   
   # Internationalization
-  intl: ^0.20.2
+  # intl: ^0.20.2
+  intl: ^0.18.1
   
   # Shared preferences
   shared_preferences: ^2.2.2
@@ -75,7 +74,7 @@ dependencies:
   cached_network_image: ^3.3.0
   
   # Liquid glass effect
-  liquid_glass_renderer: ^0.2.0-dev.3
+  # liquid_glass_renderer: ^0.2.0-dev.3
   
   # SVG support
   flutter_svg: ^2.0.9
@@ -85,6 +84,8 @@ dependencies:
   
   # Alibaba Cloud RUM - 用户体验监控
   alibabacloud_rum_flutter_plugin: ^1.0.0
+  liquid_glass_effect: ^1.0.1
+  liquid_glass_renderer: ^0.1.1-dev.7
 
 
 dev_dependencies:
@@ -112,8 +113,6 @@ flutter:
 
   # To add assets to your application, add an assets section, like this:
   assets:
-    - lib/localization/en.json
-    - lib/localization/zh.json
     - referPhoto/male-2.svg
     - referPhoto/female-2.svg
     - assets/background_image.jpeg

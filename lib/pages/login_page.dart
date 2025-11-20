@@ -6,6 +6,7 @@ import '../config/api_keys.dart';
 
 // localization handled elsewhere
 import '../services/api_service.dart';
+import '../services/platform_login_service.dart';
 
 /// 登录页面
 /// 使用阿里云一键登录服务
@@ -18,6 +19,7 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
   final ApiService _apiService = ApiService();
+  final PlatformLoginService _platformLoginService = PlatformLoginService();
   bool _isInitialized = false;
   String? _errorMessage;
   String _status = '';
@@ -26,13 +28,23 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _initializeAuth();
+    
+    if (PlatformLoginService.isHarmonyOS) {
+      // HarmonyOS 不需要初始化 Ali Auth
+      _updateState(() {
+        _isInitialized = true;
+      });
+    } else {
+      _initializeAuth();
+    }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _disposeSdkIfNeeded();
+    if (!PlatformLoginService.isHarmonyOS) {
+      _disposeSdkIfNeeded();
+    }
     super.dispose();
   }
 
@@ -67,7 +79,7 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
     }
   }
 
-  /// 一键登录（SDK 自动管理 loading 和页面退出）
+  /// 一键登录
   Future<void> _oneClickLogin() async {
     if (!_isInitialized) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -76,6 +88,15 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
       return;
     }
 
+    if (PlatformLoginService.isHarmonyOS) {
+      await _harmonyOSLogin();
+    } else {
+      await _aliAuthLogin();
+    }
+  }
+
+  /// 阿里云一键登录（SDK 自动管理 loading 和页面退出）
+  Future<void> _aliAuthLogin() async {
     try {
       // SDK 会自动显示 loading，登录成功后自动退出页面（autoQuitPage: true）
       await AliAuth.login();
@@ -86,6 +107,71 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
       _updateState(() {
         _errorMessage = '登录失败: $e';
       });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('登录失败: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  /// 鸿蒙一键登录
+  Future<void> _harmonyOSLogin() async {
+    try {
+      // 显示 loading
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
+
+      // 1. 调用原生获取授权码
+      final authCode = await _platformLoginService.harmonyOSQuickLogin();
+      
+      if (kDebugMode) {
+        print('HarmonyOS Auth Code: $authCode');
+      }
+
+      // 2. 发送到服务器换取用户信息
+      final response = await _apiService.loginWithHuaweiCode(authCode);
+      
+      // 关闭 loading
+      if (mounted) {
+        Navigator.pop(context);
+      }
+
+      // 3. 保存用户信息并跳转
+      if (response['success'] == true) {
+        final data = response['data'];
+        // 这里可以根据需要处理返回的数据，比如保存 token 等
+        // 目前逻辑是直接跳转到主页，假设服务器已经处理了 session
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('登录成功'), backgroundColor: Colors.green),
+          );
+          // 延迟跳转，让用户看到成功提示
+          await Future.delayed(const Duration(milliseconds: 500));
+          if (mounted) {
+            Navigator.pushReplacementNamed(context, '/home');
+          }
+        }
+      } else {
+        throw Exception(response['message'] ?? '登录失败');
+      }
+    } catch (e) {
+      // 关闭 loading
+      if (mounted && Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+      
+      if (kDebugMode) {
+        print('鸿蒙登录失败: $e');
+      }
+      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

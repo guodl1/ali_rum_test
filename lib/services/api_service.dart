@@ -146,6 +146,26 @@ class ApiService {
     }
   }
 
+  /// 华为一键登录 - 通过授权码获取手机号并创建/获取账号
+  Future<Map<String, dynamic>> loginWithHuaweiCode(String authorizationCode) async {
+    try {
+      final response = await _client
+          .post(
+            Uri.parse('$baseUrl/api/auth/huawei/quick-login'),
+            headers: {'Content-Type': 'application/json'},
+            body: json.encode({'authorization_code': authorizationCode}),
+          )
+          .timeout(Duration(milliseconds: AppConfig.receiveTimeout));
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        throw Exception('Huawei login failed: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Huawei login error: $e');
+    }
+  }
+
   /// 获取历史记录
   Future<List<HistoryModel>> getHistory({
     String? userId,
