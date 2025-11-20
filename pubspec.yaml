@@ -84,8 +84,7 @@ dependencies:
   
   # Alibaba Cloud RUM - 用户体验监控
   alibabacloud_rum_flutter_plugin: ^1.0.0
-  liquid_glass_effect: ^1.0.1
-  liquid_glass_renderer: ^0.1.1-dev.7
+  liquid_glass_renderer: ^0.2.0-dev.4
 
 
 dev_dependencies:

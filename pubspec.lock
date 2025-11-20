@@ -480,22 +480,14 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "3.0.0"
-  liquid_glass_effect:
-    dependency: "direct main"
-    description:
-      name: liquid_glass_effect
-      sha256: "1bc189ac044550f21242484bfc3540827f8553ac97730d90d4f82421cecdc66e"
-      url: "https://pub.flutter-io.cn"
-    source: hosted
-    version: "1.0.1"
   liquid_glass_renderer:
     dependency: "direct main"
     description:
       name: liquid_glass_renderer
-      sha256: c13d30d31d1244bccd56b1cce9f8121241c4e4b8c10d57c81329c2919beb38b3
+      sha256: "789be157494b38cdef7607bb9b63e7fe3fab76fae16149e52fa313c2d858cb3f"
       url: "https://pub.flutter-io.cn"
     source: hosted
-    version: "0.1.1-dev.26"
+    version: "0.2.0-dev.4"
   logging:
     dependency: transitive
     description:

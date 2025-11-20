@@ -4,7 +4,7 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'liquid_glass_card_ohos.dart';
+
 
 /// 液态玻璃卡片组件
 /// 自动根据平台选择实现：
@@ -40,21 +40,7 @@ class LiquidGlassCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // HarmonyOS 平台使用专用实现
-    if (!kIsWeb && Platform.operatingSystem == 'ohos') {
-      return LiquidGlassCardOhos(
-        width: width,
-        height: height,
-        padding: padding,
-        margin: margin,
-        onTap: onTap,
-        backgroundColor: backgroundColor,
-        borderRadius: borderRadius,
-        blurIntensity: blurIntensity,
-        thickness: thickness,
-        child: child,
-      );
-    }
+
 
     return _LiquidGlassCardDefault(
       width: width,

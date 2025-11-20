@@ -6,7 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/models.dart';
 import '../services/api_service.dart';
-import '../services/localization_service.dart';
+
 import '../services/local_history_service.dart';
 import '../widgets/upload_options_dialog.dart';
 import 'audio_player_page.dart';
@@ -89,7 +89,7 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Map<String, List<HistoryModel>> _groupHistory(List<HistoryModel> items, AppLocalizations localizations) {
+  Map<String, List<HistoryModel>> _groupHistory(List<HistoryModel> items) {
     final Map<String, List<HistoryModel>> grouped = {};
     final now = DateTime.now();
 
@@ -98,9 +98,9 @@ class _HomePageState extends State<HomePage> {
       String label;
 
       if (_isSameDay(created, now)) {
-        label = localizations.translate('today');
+        label = '今天';
       } else if (_isSameDay(created, now.subtract(const Duration(days: 1)))) {
-        label = localizations.translate('yesterday');
+        label = '昨天';
       } else {
         label = _dateLabelFormat.format(created);
       }
@@ -396,18 +396,7 @@ class _HomePageState extends State<HomePage> {
         ? const Color(0xFFF1EEE3)
         : const Color(0xFF191815);
 
-    // 安全获取 localizations，如果为 null 则显示加载状态
-    final localizations = AppLocalizations.of(context);
-    if (localizations == null) {
-      return Scaffold(
-        backgroundColor: backgroundColor,
-        body: Center(
-          child: CircularProgressIndicator(color: textColor),
-        ),
-      );
-    }
-
-    final groupedHistory = _groupHistory(_history, localizations);
+    final groupedHistory = _groupHistory(_history);
 
     // 在每次构建后检查是否需要刷新历史（由生成流程设置）
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkHistoryRefresh());
@@ -435,7 +424,7 @@ class _HomePageState extends State<HomePage> {
                   child: _isLoading && !_hasLoadedOnce
                       ? _buildLoadingState(textColor)
                       : groupedHistory.isEmpty
-                          ? _buildEmptyState(textColor, localizations)
+                          ? _buildEmptyState(textColor)
                           : ListView(
                               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                               children: [
@@ -488,11 +477,7 @@ class _HomePageState extends State<HomePage> {
   /// 顶部标题栏 - 参考 home-structure.json title frame
   /// 左侧：头像 (48x48)，右侧：加号按钮 (48x48)
   Widget _buildTopBar(Color textColor) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final containerWidth = (screenWidth - 40).clamp(300.0, 600.0); // 响应式宽度，最小300，最大600
-    
     return Container(
-      width: containerWidth,
       height: 48,
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       child: Row(
@@ -514,8 +499,8 @@ class _HomePageState extends State<HomePage> {
             child: Container(
               width: 48,
               height: 48,
-              decoration: BoxDecoration(
-                color: const Color(0xFFD9D9D9), // rgb(217, 217, 217)
+              decoration: const BoxDecoration(
+                color: Color(0xFFD9D9D9), // rgb(217, 217, 217)
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -524,7 +509,6 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
           ),
-          // 右侧加号按钮 - plus frame (48x48)
           // 右侧加号按钮 - plus frame (48x48)
           Builder(
             builder: (btnContext) {
@@ -535,7 +519,7 @@ class _HomePageState extends State<HomePage> {
                 child: Container(
                   width: 48,
                   height: 48,
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     color: Colors.black,
                     shape: BoxShape.circle,
                   ),
@@ -652,7 +636,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildEmptyState(Color textColor, AppLocalizations localizations) {
+  Widget _buildEmptyState(Color textColor) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -664,7 +648,7 @@ class _HomePageState extends State<HomePage> {
           ),
           const SizedBox(height: 16),
           Text(
-            localizations.translate('no_recent_history'),
+            '暂无历史记录',
             style: TextStyle(
               color: textColor.withValues(alpha: 0.6),
               fontSize: 16,
