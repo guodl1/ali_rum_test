@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../widgets/liquid_glass_card.dart';
-import '../services/localization_service.dart';
 
 /// 商品/升级页面
 class ProductsPage extends StatefulWidget {
@@ -11,7 +10,6 @@ class ProductsPage extends StatefulWidget {
 }
 
 class _ProductsPageState extends State<ProductsPage> {
-  final LocalizationService _localizationService = LocalizationService();
   int _selectedPlanIndex = 0;
 
   @override
@@ -24,8 +22,6 @@ class _ProductsPageState extends State<ProductsPage> {
     final textColor = isDark
         ? const Color(0xFFF1EEE3)
         : const Color(0xFF191815);
-
-    final localizations = AppLocalizations.of(context)!;
 
     return Scaffold(
       backgroundColor: backgroundColor,

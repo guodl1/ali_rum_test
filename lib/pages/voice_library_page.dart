@@ -6,7 +6,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/models.dart';
 import '../services/api_service.dart';
 import '../services/audio_service.dart';
-import '../services/localization_service.dart';
 import '../widgets/liquid_glass_card.dart';
 import '../widgets/voice_card_widget.dart';
 
@@ -271,17 +270,6 @@ class _VoiceLibraryPageState extends State<VoiceLibraryPage> {
         : const Color(0xFF272536);
     const accentColor = Color(0xFF3742D7);
     
-    // 安全获取 localizations
-    final localizations = AppLocalizations.of(context);
-    if (localizations == null) {
-      return Scaffold(
-        backgroundColor: backgroundColor,
-        body: Center(
-          child: CircularProgressIndicator(color: textColor),
-        ),
-      );
-    }
-
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -298,9 +286,9 @@ class _VoiceLibraryPageState extends State<VoiceLibraryPage> {
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                 child: Column(
               children: [
-                _buildHeader(textColor, localizations),
+                _buildHeader(textColor),
                 const SizedBox(height: 24),
-                _buildSearchBar(textColor, localizations),
+                _buildSearchBar(textColor),
                 const SizedBox(height: 16),
                 _buildFilterChips(textColor, accentColor),
                 const SizedBox(height: 20),
@@ -325,7 +313,7 @@ class _VoiceLibraryPageState extends State<VoiceLibraryPage> {
     );
   }
 
-  Widget _buildHeader(Color textColor, AppLocalizations localizations) {
+  Widget _buildHeader(Color textColor) {
     return Row(
       children: [
         GestureDetector(
@@ -350,7 +338,7 @@ class _VoiceLibraryPageState extends State<VoiceLibraryPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                localizations.translate('voice_library'),
+                '语音库',
                 style: TextStyle(
                   color: textColor,
                   fontSize: 30,
@@ -359,7 +347,7 @@ class _VoiceLibraryPageState extends State<VoiceLibraryPage> {
               ),
               const SizedBox(height: 6),
               Text(
-                localizations.translate('select_voice'),
+                '选择您喜欢的声音',
                 style: TextStyle(
                   color: textColor.withValues(alpha: 0.6),
                   fontSize: 13,
@@ -385,7 +373,7 @@ class _VoiceLibraryPageState extends State<VoiceLibraryPage> {
     );
   }
 
-  Widget _buildSearchBar(Color textColor, AppLocalizations localizations) {
+  Widget _buildSearchBar(Color textColor) {
     return StatefulBuilder(
       builder: (context, setState) {
     return LiquidGlassCard(
@@ -404,7 +392,7 @@ class _VoiceLibraryPageState extends State<VoiceLibraryPage> {
                     _applyFilters();
                   },
               decoration: InputDecoration(
-                hintText: localizations.translate('search'),
+                hintText: '搜索',
                 border: InputBorder.none,
                 isCollapsed: true,
                 hintStyle: TextStyle(color: textColor.withValues(alpha: 0.4)),
@@ -585,22 +573,35 @@ class _VoiceLibraryPageState extends State<VoiceLibraryPage> {
     });
 
     try {
-      String previewUrl = voice.previewUrl;
-      
-      // If previewUrl is empty or not valid, fetch from server
-      if (previewUrl.isEmpty) {
-        previewUrl = await _apiService.getVoicePreview(
-          voiceId: voice.voiceId,
-          model: voice.model,
+      // 检查 voice 是否有 preview_url
+      if (voice.previewUrl.isEmpty) {
+        // 没有试听URL，提示用户
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('试听音频尚未生成，请稍后再试'),
+            duration: Duration(seconds: 2),
+          ),
         );
+        print('[VoiceLibrary] No preview_url for ${voice.voiceId}');
+        return;
       }
+
+      // 构建完整URL
+      final previewUrl = voice.previewUrl.startsWith('http')
+          ? voice.previewUrl
+          : '${_apiService.baseUrl}${voice.previewUrl}';
       
+      print('[VoiceLibrary] Playing preview: $previewUrl');
+      
+      // 播放试听音频
       await _audioService.play(previewUrl);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error playing preview: $e')),
+        SnackBar(content: Text('播放失败: $e')),
       );
+      print('[VoiceLibrary] Preview playback failed: $e');
     } finally {
       if (mounted) {
         setState(() {

@@ -4,7 +4,6 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import '../services/audio_service.dart';
-import '../services/localization_service.dart';
 import '../services/api_service.dart';
 import '../models/models.dart';
 import '../models/titles_model.dart';
@@ -202,7 +201,6 @@ class _AudioPlayerPageState extends State<AudioPlayerPage> with SingleTickerProv
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final localizations = AppLocalizations.of(context)!;
     
     // Figma 设计的颜色
     final backgroundColor = isDark 
@@ -229,7 +227,7 @@ class _AudioPlayerPageState extends State<AudioPlayerPage> with SingleTickerProv
           child: Column(
             children: [
               // Header - 基于 Figma 设计
-              _buildHeader(foregroundColor, accentColor, localizations),
+              _buildHeader(foregroundColor, accentColor),
               
               // Content - 文本显示区域
               Expanded(
@@ -242,7 +240,7 @@ class _AudioPlayerPageState extends State<AudioPlayerPage> with SingleTickerProv
               const SizedBox(height: 16),
               
               // Footer - 控制区域（Nav）
-              _buildFooter(foregroundColor, accentColor, localizations),
+              _buildFooter(foregroundColor, accentColor),
               
               const SizedBox(height: 16),
             ],
@@ -253,7 +251,7 @@ class _AudioPlayerPageState extends State<AudioPlayerPage> with SingleTickerProv
   }
 
   /// 构建顶部标题栏（参考 Header.svg 和 header-structure.json）
-  Widget _buildHeader(Color foregroundColor, Color accentColor, AppLocalizations localizations) {
+  Widget _buildHeader(Color foregroundColor, Color accentColor) {
     // 根据 header-structure.json: 宽度 343, 高度 48, gap 91
     // 左侧：48x48 圆形按钮（返回）
     // 中间：157x22 章节信息（"1 Chapter - Loomings"格式，gap 6）
@@ -315,7 +313,7 @@ class _AudioPlayerPageState extends State<AudioPlayerPage> with SingleTickerProv
             icon: Icons.more_horiz,
             color: const Color(0xFF191815), // rgb(25, 24, 21)
             foregroundColor: const Color(0xFFF1EEE3), // rgb(241, 238, 227)
-            onTap: () => _showMoreOptions(localizations),
+            onTap: _showMoreOptions,
           ),
         ],
       ),
@@ -476,7 +474,7 @@ class _AudioPlayerPageState extends State<AudioPlayerPage> with SingleTickerProv
   }
 
   /// 构建底部控制区域（参考 Nav.svg 和 nav-structure.json）
-  Widget _buildFooter(Color foregroundColor, Color accentColor, AppLocalizations localizations) {
+  Widget _buildFooter(Color foregroundColor, Color accentColor) {
     // 根据 Nav.svg: 宽度 343, 高度 81, 圆角 40.5
     // 左侧：后退按钮（卡带图标样式）
     // 中间：播放按钮（红色圆形，带白色播放图标）
@@ -600,7 +598,7 @@ class _AudioPlayerPageState extends State<AudioPlayerPage> with SingleTickerProv
   }
 
   /// 显示更多选项
-  void _showMoreOptions(AppLocalizations localizations) {
+  void _showMoreOptions() {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -631,17 +629,17 @@ class _AudioPlayerPageState extends State<AudioPlayerPage> with SingleTickerProv
                 
                 _buildOptionItem(
                   icon: Icons.speed,
-                  title: localizations.translate('playback_speed'),
+                  title: '播放速度',
                   foregroundColor: foregroundColor,
                   onTap: () {
                     Navigator.pop(context);
-                    _showSpeedOptions(localizations);
+                    _showSpeedOptions();
                   },
                 ),
                 
                 _buildOptionItem(
                   icon: Icons.bookmark_border,
-                  title: localizations.translate('add_to_favorites'),
+                  title: '添加到收藏',
                   foregroundColor: foregroundColor,
                   onTap: () {
                     Navigator.pop(context);
@@ -651,7 +649,7 @@ class _AudioPlayerPageState extends State<AudioPlayerPage> with SingleTickerProv
                 
                 _buildOptionItem(
                   icon: Icons.share,
-                  title: localizations.translate('share'),
+                  title: '分享',
                   foregroundColor: foregroundColor,
                   onTap: () {
                     Navigator.pop(context);
@@ -688,7 +686,7 @@ class _AudioPlayerPageState extends State<AudioPlayerPage> with SingleTickerProv
   }
 
   /// 显示播放速度选项
-  void _showSpeedOptions(AppLocalizations localizations) {
+  void _showSpeedOptions() {
     // TODO: 实现播放速度调整
   }
 }
