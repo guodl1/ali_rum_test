@@ -148,22 +148,6 @@ class _ProductsPageState extends State<ProductsPage> {
         ],
         'isPopular': true,
       },
-      {
-        'name': '终身会员',
-        'price': '¥999',
-        'period': '一次性',
-        'features': [
-          '永久 1,000,000 可用字符/月',
-          '20,000 字符的高级声音/月',
-          '首次开通赠送一次声音克隆',
-          '解锁高级声音',
-          '无限图片扫描',
-          '无限网页导入',
-          '无限文档导入',
-          '永久有效，无需续费',
-        ],
-        'isPremium': true,
-      },
     ];
 
     return plans.asMap().entries.map((entry) {

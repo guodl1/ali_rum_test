@@ -9,6 +9,7 @@ import '../services/local_history_service.dart';
 import '../models/models.dart';
 import '../models/titles_model.dart';
 import 'package:audioplayers/audioplayers.dart';
+import '../widgets/waveform_visualizer.dart';
 
 /// 音频播放页面
 /// 基于 Figma 设计的播放界面
@@ -233,13 +234,46 @@ class _AudioPlayerPageState extends State<AudioPlayerPage> with SingleTickerProv
               
               // Content - 文本显示区域
               Expanded(
-                child: _buildContentArea(foregroundColor),
+                child: _buildContentArea(foregroundColor, backgroundColor),
               ),
               
+              // Waveform Visualizer
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Row(
+                  children: [
+                    Text(
+                      _formatDuration(_currentPosition),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: foregroundColor.withOpacity(0.5),
+                      ),
+                    ),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: WaveformVisualizer(
+                          isPlaying: _playerState == PlayerState.playing,
+                          color: foregroundColor,
+                          barCount: 40,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      _formatDuration(_totalDuration),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: foregroundColor.withOpacity(0.5),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
               // 进度条和时间显示
               _buildProgressBar(foregroundColor, accentColor),
               
-              const SizedBox(height: 16),
+              // const SizedBox(height: 16),
               
               // Footer - 控制区域（Nav）
               _buildFooter(foregroundColor, accentColor),
@@ -348,45 +382,77 @@ class _AudioPlayerPageState extends State<AudioPlayerPage> with SingleTickerProv
   }
 
   /// 构建文本显示区域（支持 titles 高亮）
-  Widget _buildContentArea(Color foregroundColor) {
+  Widget _buildContentArea(Color foregroundColor, Color backgroundColor) {
+    Widget content;
     if (_isLoading) {
-      return Center(
+      content = Center(
         child: CircularProgressIndicator(
           valueColor: AlwaysStoppedAnimation<Color>(foregroundColor),
         ),
       );
-    }
-
-    // 如果有 titles 数据，使用段落高亮显示
-    if (_titlesSegments.isNotEmpty) {
-      return Container(
+    } else if (_titlesSegments.isNotEmpty) {
+      // 如果有 titles 数据，使用段落高亮显示
+      content = Container(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: SingleChildScrollView(
           controller: _scrollController,
           physics: const BouncingScrollPhysics(),
-          child: _buildTitlesContent(foregroundColor),
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 80), // Add padding for fade area
+            child: _buildTitlesContent(foregroundColor),
+          ),
+        ),
+      );
+    } else {
+      // 普通文本显示
+      final displayText = _getDisplayText();
+      content = Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: SingleChildScrollView(
+          controller: _scrollController,
+          physics: const BouncingScrollPhysics(),
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 80), // Add padding for fade area
+            child: Text(
+              displayText,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w400,
+                color: foregroundColor,
+                height: 1.8,
+                letterSpacing: 0.3,
+              ),
+            ),
+          ),
         ),
       );
     }
 
-    // 普通文本显示
-    final displayText = _getDisplayText();
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: SingleChildScrollView(
-        controller: _scrollController,
-        physics: const BouncingScrollPhysics(),
-        child: Text(
-          displayText,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w400,
-            color: foregroundColor,
-            height: 1.8,
-            letterSpacing: 0.3,
+    return Stack(
+      children: [
+        content,
+        // Bottom fade-out gradient
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          height: 80,
+          child: IgnorePointer(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    backgroundColor.withOpacity(0.0),
+                    backgroundColor,
+                  ],
+                ),
+              ),
+            ),
           ),
         ),
-      ),
+      ],
     );
   }
 

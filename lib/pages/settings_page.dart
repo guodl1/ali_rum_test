@@ -5,6 +5,7 @@ import '../services/localization_service.dart';
 import '../services/api_service.dart';
 import '../services/usage_stats_service.dart';
 import 'products_page.dart';
+import 'privacy_policy_page.dart';
 
 /// 设置页面
 class SettingsPage extends StatefulWidget {
@@ -452,42 +453,9 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   void _showPrivacyPolicy() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('隐私协议'),
-        content: SingleChildScrollView(
-          child: Text(
-            '''隐私协议
-
-更新日期：2024
-
-1. 信息收集
-当您使用我们的TTS阅读器应用时，我们会收集您提供的信息。
-
-2. 信息使用
-- 提供和维护我们的服务
-- 改进我们的服务
-- 监控使用情况
-
-3. 数据存储
-您的数据安全存储在我们的服务器上。
-
-4. 第三方服务
-我们使用第三方服务提供TTS和OCR功能。
-
-5. 联系我们
-如有关于隐私政策的问题，请联系：${ApiKeys.contactEmail}
-            ''',
-            style: const TextStyle(fontSize: 14, height: 1.6),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('关闭'),
-          ),
-        ],
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const PrivacyPolicyPage(),
       ),
     );
   }

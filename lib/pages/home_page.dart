@@ -549,6 +549,17 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
           ),
+          
+          // 中间标题
+          Text(
+            '听阅',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: textColor,
+            ),
+          ),
+
           // 右侧加号按钮 - plus frame (48x48)
           Builder(
             builder: (btnContext) {
