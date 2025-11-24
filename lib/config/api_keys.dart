@@ -25,4 +25,9 @@ class ApiKeys {
   // Ali Auth (一键登录) - 填入你的 Android/ iOS SK
   static const String aliAuthAndroidSk = 'lEhoFoaBFzq8pcm+y73JYe6VKPV1ulR02CsHgKcRfVKOxaAsoSEjcKp6QUeHUlMD6t2pRDpnXeR81vAT9ivIioOlj7TvbfSojze5P2YLd9FmlToVTkA+Bxl/U3EIXDJCN2If98gBBhHOb/qUxGcNszAGqtM6AV5axcul+jDlO+8wUbou5RCKIOqfwPrjQIIjrqoQChMeCBQdV7Tu526alV6SJFH+wk7NP7DjnxUjca6xJU9IgWC1GxEzboprldvWjAwHrAC/bXXfzSm3Gmq7TjrtE3/WkC+N6JF2xSmCahLu/IUW60ELEQ==';
   static const String aliAuthIosSk = '1QE/527HJl//eWVt4REbBB5z3FvOM9hBhIAH6wN4uhQETGe7WYtHpS0VqtThaAUGmpw31DA/9qvsPedvVDab6GeOK/kmS1OYGv8EpoNg/Nb2rjOuMKMv2rZ0BFkMJD17MPMLBjvzbMDKbaRNGS5zDQkprMEZToMZBxwAfzUvietu4svHYu4tGReEGfcl02K0SdXjqnv69ohkZUdyhJKFQb6aZYs2msCD1RxDU1fuSjmubLF46IlSL6jdMOLf8PU4g0Xta7phZfk=';
+
+  // Alipay Configuration
+  // Note: Sensitive keys should be kept on the server.
+  // These are for client-side configuration if needed (e.g. scheme).
+  static const String alipayScheme = 'alipay_scheme'; // Replace with your scheme
 }

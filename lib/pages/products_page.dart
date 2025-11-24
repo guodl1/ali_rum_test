@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../widgets/liquid_glass_card.dart';
+import '../services/payment_service.dart';
 
 /// 商品/升级页面
 class ProductsPage extends StatefulWidget {
@@ -309,17 +310,69 @@ class _ProductsPageState extends State<ProductsPage> {
     }).toList();
   }
 
-  void _handlePurchase() {
-    final plans = ['月度会员', '年度会员', '终身会员'];
-    final selectedPlan = plans[_selectedPlanIndex];
+  Future<void> _handlePurchase() async {
+    final plans = [
+      {'name': '月度会员', 'price': '29.00'},
+      {'name': '年度会员', 'price': '299.00'},
+    ];
     
-    // TODO: 实现支付功能
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('购买 $selectedPlan 功能即将推出'),
-        duration: const Duration(seconds: 2),
-      ),
+    if (_selectedPlanIndex >= plans.length) return;
+    
+    final plan = plans[_selectedPlanIndex];
+    final name = plan['name']!;
+    final price = plan['price']!;
+
+    // Show loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
     );
+
+    try {
+      final paymentService = PaymentService();
+      // TODO: Replace with real user ID
+      final userId = 123; 
+      
+      final result = await paymentService.payWithAlipay(
+        amount: price,
+        subject: '听阅 - $name',
+        userId: userId,
+      );
+
+      // Hide loading
+      if (mounted) Navigator.of(context).pop();
+
+      if (mounted) {
+        if (result['success'] == true) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('支付成功！'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result['message'] ?? '支付失败'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      // Hide loading
+      if (mounted) Navigator.of(context).pop();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('支付出错: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }
 

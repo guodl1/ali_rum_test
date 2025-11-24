@@ -80,4 +80,5 @@ flutter {
 // }
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.aar'])
+    implementation 'com.alipay.sdk:alipaysdk-android:15.8.17'
 }

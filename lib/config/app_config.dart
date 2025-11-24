@@ -1,7 +1,7 @@
 /// 应用配置
 class AppConfig {
   // 应用信息
-  static const String appName = 'TTS Reader';
+  static const String appName = '听阅';
   static const String appVersion = '1.0.0';
   
   // 超时配置
