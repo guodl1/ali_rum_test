@@ -126,6 +126,7 @@ class _UploadPageState extends State<UploadPage> {
   bool _showPhotoCompleteButton = true;
   // 文本预览可编辑控制器
   final TextEditingController _previewTextController = TextEditingController();
+  final FocusNode _previewFocusNode = FocusNode();
   int _playStartIndex = 0; // 文本播放起点（字符索引）
   int _playEndIndex = 0; // 文本播放终点（字符索引，0表示到结尾）
 
@@ -215,6 +216,7 @@ class _UploadPageState extends State<UploadPage> {
     _urlController.dispose();
     _textScrollController.dispose();
     _previewTextController.dispose();
+    _previewFocusNode.dispose();
     super.dispose();
   }
 
@@ -260,8 +262,13 @@ class _UploadPageState extends State<UploadPage> {
           fit: BoxFit.cover,
         ),
       ),
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
+      child: GestureDetector(
+        onTap: () {
+          // 点击空白处收起键盘
+          FocusScope.of(context).unfocus();
+        },
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
         body: SafeArea(
           // 确保所有内容在安全区域内，底部留出额外空间避免手势条遮挡
           minimum: EdgeInsets.only(
@@ -327,592 +334,10 @@ class _UploadPageState extends State<UploadPage> {
           ),
         ),
       ),
-    );
+    ));
   }
 
   /// 基于 upload-structure.json 的上传选项卡片
-
-
-  Widget _buildDefaultOptionsContent(Color textColor) {
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: _buildOptionButton(
-                icon: Icons.file_upload,
-                label: '导入',
-                onTap: () => _pickFile('document'),
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _buildOptionButton(
-                icon: Icons.text_fields,
-                label: '输入文本',
-                onTap: () {
-                  setState(() {
-                    _inlineTextController.text = _extractedText ?? '';
-                    _interactionMode = UploadInteractionMode.textInput;
-                  });
-                },
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: _buildOptionButton(
-                icon: Icons.link,
-                label: '打开网址',
-                onTap: _showUrlInputDialog,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: _buildOptionButton(
-                icon: Icons.camera_alt,
-                label: '拍照',
-                onTap: _pickFromCamera,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _buildOptionButton(
-                icon: Icons.photo_library,
-                label: '图库',
-                onTap: _pickImagesFromGallery,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCardContent(Color textColor) {
-    switch (_interactionMode) {
-      case UploadInteractionMode.urlInput:
-        return _buildUrlInputContent(textColor);
-      case UploadInteractionMode.textInput:
-        return _buildTextInputContent(textColor);
-      case UploadInteractionMode.galleryPreview:
-        return _buildGalleryPreviewContent(textColor);
-      case UploadInteractionMode.filePreview:
-        return _buildFilePreviewContent(textColor);
-      case UploadInteractionMode.none:
-        return _buildDefaultOptionsContent(textColor);
-    }
-  }
-
-  Widget _buildUrlInputContent(Color textColor) {
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                '输入网址',
-                style: TextStyle(
-                  color: textColor,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              IconButton(
-                onPressed: _resetInteractionMode,
-                icon: Icon(Icons.close, color: textColor),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _inlineUrlController,
-            autofocus: true,
-            decoration: InputDecoration(
-              prefixIcon: const Icon(Icons.link),
-              hintText: 'https://',
-              filled: true,
-              fillColor: Colors.white,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          if (_showUrlCompleteButton)
-            Align(
-              alignment: Alignment.centerRight,
-              child: ElevatedButton.icon(
-                onPressed: () async {
-                  final entered = _inlineUrlController.text.trim();
-                  if (entered.isEmpty) {
-                    if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请输入网址')));
-                    return;
-                  }
-                  String normalized = entered;
-                  if (!normalized.startsWith('http://') && !normalized.startsWith('https://')) {
-                    normalized = 'https://$normalized';
-                  }
-                  setState(() {
-                    _showUrlCompleteButton = false;
-                    _interactionMode = UploadInteractionMode.none;
-                  });
-                  await _submitUrl(normalized);
-                },
-                icon: const Icon(Icons.check),
-                label: const Text('完成'),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTextInputContent(Color textColor) {
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                '输入文本',
-                style: TextStyle(
-                  color: textColor,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              IconButton(
-                onPressed: _resetInteractionMode,
-                icon: Icon(Icons.close, color: textColor),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 220,
-            child: TextField(
-              controller: _inlineTextController,
-              expands: true,
-              maxLines: null,
-              minLines: null,
-              textAlignVertical: TextAlignVertical.top,
-              autofocus: true,
-              decoration: InputDecoration(
-                hintText: '请输入要转换的文本...',
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                contentPadding: const EdgeInsets.all(16),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          if (_showTextCompleteButton)
-            Align(
-              alignment: Alignment.centerRight,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  final entered = _inlineTextController.text.trim();
-                  setState(() {
-                    _showTextCompleteButton = false;
-                    _processExtractedText(entered);
-                    _interactionMode = UploadInteractionMode.none;
-                  });
-                  if (mounted && entered.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请输入要转换的文本')));
-                  }
-                },
-                icon: const Icon(Icons.check),
-                label: const Text('完成'),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildGalleryPreviewContent(Color textColor) {
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    '图库预览 (${_galleryImages.length})',
-                    style: TextStyle(
-                      color: textColor,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () {
-                      setState(() {
-                        _galleryImages.clear();
-                        _interactionMode = UploadInteractionMode.none;
-                        _showPhotoCompleteButton = true;
-                      });
-                    },
-                    icon: Icon(Icons.close, color: textColor),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              if (_galleryImages.isEmpty)
-                Text(
-                  '暂无图片，尝试重新选择。',
-                  style: TextStyle(color: textColor.withValues(alpha: 0.7)),
-                )
-              else
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  children: _galleryImages.asMap().entries.map((entry) {
-                    final index = entry.key;
-                    final file = entry.value;
-                    return Stack(
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(16),
-                          child: Image.file(
-                            file,
-                            width: 90,
-                            height: 90,
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                        Positioned(
-                          top: 4,
-                          right: 4,
-                          child: GestureDetector(
-                            onTap: () => _removeGalleryImage(index),
-                            child: Container(
-                              width: 20,
-                              height: 20,
-                              decoration: const BoxDecoration(
-                                color: Colors.black54,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(Icons.close, color: Colors.white, size: 12),
-                            ),
-                          ),
-                        ),
-                      ],
-                    );
-                  }).toList(),
-                ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.start,
-                children: [
-                  TextButton.icon(
-                    onPressed: _pickImagesFromGallery,
-                    icon: const Icon(Icons.add_photo_alternate),
-                    label: const Text('继续添加'),
-                  ),
-                ],
-              ),
-              // 为完成按钮留出空间，避免遮挡
-              if (_showPhotoCompleteButton) const SizedBox(height: 60),
-            ],
-          ),
-        ),
-        // 悬浮完成按钮 - 固定在右下角，始终在最上层
-        if (_showPhotoCompleteButton)
-          Positioned(
-            bottom: 0,
-            right: 0,
-            child: Material(
-              elevation: 8,
-              borderRadius: BorderRadius.circular(8),
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  setState(() {
-                    _showPhotoCompleteButton = false;
-                  });
-                },
-                icon: const Icon(Icons.check),
-                label: const Text('完成'),
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-
-  Widget _buildFilePreviewContent(Color textColor) {
-    if (_selectedFile == null) {
-      return _buildDefaultOptionsContent(textColor);
-    }
-    final info = _fileService.getFileInfo(_selectedFile!);
-    final isImage = _fileService.getFileType(_selectedFile!) == 'image';
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              '文件预览',
-              style: TextStyle(
-                color: textColor,
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            IconButton(
-              onPressed: () {
-                setState(() {
-                  _selectedFile = null;
-                  _interactionMode = UploadInteractionMode.none;
-                });
-              },
-              icon: Icon(Icons.close, color: textColor),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: Container(
-                height: 220,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.6),
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                child: isImage
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(24),
-                        child: Image.file(
-                          _selectedFile!,
-                          fit: BoxFit.cover,
-                        ),
-                      )
-                    : Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.insert_drive_file,
-                            color: Theme.of(context).colorScheme.primary,
-                            size: 48,
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            info['name'],
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            _fileService.formatFileSize(info['size']),
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: textColor.withValues(alpha: 0.7),
-                            ),
-                          ),
-                        ],
-                      ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                IconButton(
-                  onPressed: () {
-                    setState(() {
-                      _interactionMode = UploadInteractionMode.none;
-                    });
-                  },
-                  icon: const Icon(Icons.edit),
-                  tooltip: '重新选择',
-                ),
-                IconButton(
-                  onPressed: () {
-                    setState(() {
-                      _selectedFile = null;
-                      _interactionMode = UploadInteractionMode.none;
-                    });
-                  },
-                  icon: const Icon(Icons.delete_outline),
-                  tooltip: '移除文件',
-                ),
-              ],
-            ),
-          ],
-        ),
-        ],
-      ),
-    );
-  }
-
-  void _resetInteractionMode() {
-    setState(() {
-      _interactionMode = UploadInteractionMode.none;
-      _showUrlCompleteButton = true;
-      _showTextCompleteButton = true;
-    });
-  }
-
-
-  void _removeGalleryImage(int index) {
-    if (index < 0 || index >= _galleryImages.length) return;
-    setState(() {
-      _galleryImages.removeAt(index);
-      if (_galleryImages.isEmpty) {
-        _selectedFile = null;
-        _interactionMode = UploadInteractionMode.none;
-        _showPhotoCompleteButton = true;
-      } else {
-        _selectedFile = _galleryImages.first;
-        // 删除图片后显示完成按钮
-        _showPhotoCompleteButton = true;
-      }
-    });
-  }
-
-  Widget _buildOptionButton({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark
-        ? const Color(0xFFF1EEE3)
-        : const Color(0xFF191815);
-    final screenHeight = MediaQuery.of(context).size.height;
-    final buttonHeight = screenHeight < 600 ? 80.0 : 100.0;
-    final iconSize = screenHeight < 600 ? 28.0 : 32.0;
-    final fontSize = screenHeight < 600 ? 12.0 : 14.0;
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: buttonHeight,
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(isDark ? 0.1 : 0.5),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              color: textColor,
-              size: iconSize,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              style: TextStyle(
-                color: textColor,
-                fontSize: fontSize,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _pickImagesFromGallery() async {
-    try {
-      await _requestStoragePermission();
-
-      final pickedFiles = await _imagePicker.pickMultiImage(
-        maxWidth: 1920,
-        maxHeight: 1920,
-        imageQuality: 85,
-      );
-
-      if (pickedFiles.isEmpty) {
-        return;
-      }
-
-      final files = pickedFiles.map((x) => File(x.path)).toList();
-
-      setState(() {
-        // 继续添加而不是替换现有图片
-        _galleryImages.addAll(files);
-        if (_selectedFile == null && files.isNotEmpty) {
-          _selectedFile = files.first;
-        }
-        _interactionMode = UploadInteractionMode.galleryPreview;
-        _extractedText = '请输入编辑文本';
-        // 添加图片后显示完成按钮
-        _showPhotoCompleteButton = true;
-      });
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('选择图片失败: $e')),
-        );
-      }
-    }
-  }
-
-  /// 从相机拍照
-  Future<void> _pickFromCamera() async {
-    try {
-      await _requestCameraPermission();
-      
-      final XFile? pickedFile = await _imagePicker.pickImage(
-        source: ImageSource.camera,
-        maxWidth: 1920,
-        maxHeight: 1920,
-        imageQuality: 85,
-      );
-      
-      if (pickedFile != null) {
-        final file = File(pickedFile.path);
-        if (_fileService.validateFileSize(file)) {
-          setState(() {
-            _selectedFile = file;
-            _interactionMode = UploadInteractionMode.filePreview;
-            _galleryImages.clear();
-          });
-        } else if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('文件大小超过限制（最大10MB）')),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('拍照失败: $e')),
-        );
-      }
-    }
-  }
-
-
 
   Widget _buildVoiceSelection(ResponsiveSizes sizes) {
     return Column(
@@ -961,65 +386,72 @@ class _UploadPageState extends State<UploadPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          height: sizes.textPreviewHeight,
-          decoration: BoxDecoration(
-            border: Border(
-              top: BorderSide(color: Colors.grey.shade300, width: 1),
-              left: BorderSide(color: Colors.grey.shade300, width: 1),
-              right: BorderSide(color: Colors.grey.shade300, width: 1),
+        GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onTap: () {
+            if (mounted) _previewFocusNode.requestFocus();
+          },
+          child: Container(
+            height: sizes.textPreviewHeight,
+            decoration: BoxDecoration(
+              border: Border(
+                top: BorderSide(color: Colors.grey.shade300, width: 1),
+                left: BorderSide(color: Colors.grey.shade300, width: 1),
+                right: BorderSide(color: Colors.grey.shade300, width: 1),
+              ),
             ),
-          ),
-          child: Stack(
-            children: [
-              // 全高度渐变背景层
-              Positioned.fill(
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        const Color(0xFFEEEFDF), // 顶部实色背景
-                        const Color(0xFFEEEFDF), // 中间保持实色
-                        Colors.transparent, // 底部透明，显示页面背景
-                      ],
-                      stops: const [0.0, 1, 1.0], // 70%实色，30%渐变到透明
+            child: Stack(
+              children: [
+                // 全高度渐变背景层
+                Positioned.fill(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          const Color(0xFFEEEFDF), // 顶部实色背景
+                          const Color(0xFFEEEFDF), // 中间保持实色
+                          Colors.transparent, // 底部透明，显示页面背景
+                        ],
+                        stops: const [0.0, 1, 1.0], // 70%实色，30%渐变到透明
+                      ),
                     ),
                   ),
                 ),
-              ),
-              // 可滚动的文本编辑区域
-              SingleChildScrollView(
-                controller: _textScrollController,
-                child: Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: sizes.smallSpacing,
-                  ),
-                  child: TextField(
-                    controller: _previewTextController,
-                    keyboardType: TextInputType.multiline,
-                    maxLines: null,
-                    cursorColor: const Color(0xFF191815), // 使用深色光标
-                    cursorWidth: 2.0, // 增加光标宽度
-                    autofocus: true,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      height: 1.5,
-                      color: Color(0xFF191815), // 文本颜色
+                // 可滚动的文本编辑区域
+                SingleChildScrollView(
+                  controller: _textScrollController,
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: sizes.smallSpacing,
                     ),
-                    decoration: const InputDecoration(
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.zero,
+                    child: TextField(
+                      focusNode: _previewFocusNode,
+                      controller: _previewTextController,
+                      keyboardType: TextInputType.multiline,
+                      maxLines: null,
+                      cursorColor: const Color(0xFF191815), // 使用深色光标
+                      cursorWidth: 2.0, // 增加光标宽度
+                      autofocus: false,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        height: 1.5,
+                        color: Color(0xFF191815), // 文本颜色
+                      ),
+                      decoration: const InputDecoration(
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                      onChanged: (value) {
+                        _extractedText = value;
+                      },
                     ),
-                    onChanged: (value) {
-                      _extractedText = value;
-                    },
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ],

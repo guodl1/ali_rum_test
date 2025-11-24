@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/models.dart';
 import '../services/api_service.dart';
+import '../services/audio_service.dart';
 
 import '../services/local_history_service.dart';
 import '../widgets/upload_options_dialog.dart';
@@ -42,6 +43,10 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _loadHistory();
+    // 监听音频状态变化以更新UI
+    AudioService().stateStream.listen((_) {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
@@ -50,6 +55,7 @@ class _HomePageState extends State<HomePage> {
     // 每次页面显示时检查是否需要刷新
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkAndRefreshHistory();
+      if (mounted) setState(() {}); // 刷新播放状态
     });
   }
 
@@ -612,6 +618,22 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  Future<void> _handlePlayButtonTap(HistoryModel history) async {
+    final audioService = AudioService();
+    final isCurrent = audioService.currentHistoryId == history.id;
+    
+    if (isCurrent) {
+      if (audioService.isPlaying) {
+        await audioService.pause();
+      } else {
+        await audioService.play(history.audioUrl, historyId: history.id);
+      }
+    } else {
+      await audioService.playWithResume(history.audioUrl, history.id);
+    }
+    if (mounted) setState(() {});
+  }
+
   String _formatDuration(int seconds) {
     final m = seconds ~/ 60;
     final s = seconds % 60;
@@ -666,133 +688,138 @@ class _HomePageState extends State<HomePage> {
         borderRadius: BorderRadius.circular(24),
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.6),
-              border: Border.all(
-                color: Colors.white.withOpacity(0.5),
-                width: 1.5,
+          child: GestureDetector(
+            onTap: () => _openAudioPlayer(history), // 点击卡片进入播放页
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.6),
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.5),
+                  width: 1.5,
+                ),
               ),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Top Row: Voice Name & Date
-                  Row(
-                    children: [
-                      Icon(Icons.record_voice_over, size: 16, color: textColor.withOpacity(0.6)),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          history.voiceName,
-                          style: TextStyle(
-                            color: textColor,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      Text(
-                        DateFormat('yyyy-MM-dd HH:mm').format(history.createdAt),
-                        style: TextStyle(
-                          color: textColor.withOpacity(0.5),
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  
-                  // Middle: Title & Content
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              history.fileName ?? 'Untitled',
-                              style: TextStyle(
-                                color: textColor,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Top Row: Voice Name & Date
+                    Row(
+                      children: [
+                        Icon(Icons.record_voice_over, size: 16, color: textColor.withOpacity(0.6)),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            history.voiceName,
+                            style: TextStyle(
+                              color: textColor,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
                             ),
-                            if (history.resultText != null) ...[
-                              const SizedBox(height: 4),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Text(
+                          DateFormat('yyyy-MM-dd HH:mm').format(history.createdAt),
+                          style: TextStyle(
+                            color: textColor.withOpacity(0.5),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    
+                    // Middle: Title & Content
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
                               Text(
-                                history.resultText!,
+                                history.fileName ?? 'Untitled',
                                 style: TextStyle(
-                                  color: textColor.withOpacity(0.7),
-                                  fontSize: 13,
+                                  color: textColor,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
                                 ),
-                                maxLines: 1,
+                                maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                            ],
-                            const SizedBox(height: 8),
-                            // Size and Duration
-                            Text(
-                              '${_formatSize(history.file?.size ?? 0)} • ${_formatDuration(history.duration ?? 0)}',
-                              style: TextStyle(
-                                color: textColor.withOpacity(0.5),
-                                fontSize: 12,
+                              if (history.resultText != null) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  history.resultText!,
+                                  style: TextStyle(
+                                    color: textColor.withOpacity(0.7),
+                                    fontSize: 13,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                              const SizedBox(height: 8),
+                              // Size and Duration
+                              Text(
+                                '${_formatSize(history.file?.size ?? 0)} • ${_formatDuration(history.duration ?? 0)}',
+                                style: TextStyle(
+                                  color: textColor.withOpacity(0.5),
+                                  fontSize: 12,
+                                ),
                               ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        // Play Button
+                        GestureDetector(
+                          onTap: () => _handlePlayButtonTap(history), // 点击按钮播放/暂停
+                          child: Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF4CAF50), // Green
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF4CAF50).withOpacity(0.4),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      // Play Button
-                      GestureDetector(
-                        onTap: () => _openAudioPlayer(history),
-                        child: Container(
-                          width: 48,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF4CAF50), // Green
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFF4CAF50).withOpacity(0.4),
-                                blurRadius: 8,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: const Icon(
-                            Icons.play_arrow,
-                            color: Colors.white,
-                            size: 28,
+                            child: Icon(
+                              (AudioService().currentHistoryId == history.id && AudioService().isPlaying)
+                                  ? Icons.pause
+                                  : Icons.play_arrow,
+                              color: Colors.white,
+                              size: 28,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                  
-                  const SizedBox(height: 16),
-                  // Bottom Actions
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _buildActionButton(Icons.download, () {}), // Download placeholder
-                      _buildActionButton(Icons.delete_outline, () => _deleteHistory(history)),
-                      _buildActionButton(
-                        history.isFavorite ? Icons.star : Icons.star_border,
-                        () => _toggleFavorite(history),
-                        color: history.isFavorite ? Colors.amber : null,
-                      ),
-                      _buildActionButton(Icons.language, () {}), // Globe placeholder
-                    ],
-                  ),
-                ],
+                      ],
+                    ),
+                    
+                    const SizedBox(height: 16),
+                    // Bottom Actions
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _buildActionButton(Icons.download, () {}), // Download placeholder
+                        _buildActionButton(Icons.delete_outline, () => _deleteHistory(history)),
+                        _buildActionButton(
+                          history.isFavorite ? Icons.star : Icons.star_border,
+                          () => _toggleFavorite(history),
+                          color: history.isFavorite ? Colors.amber : null,
+                        ),
+                        _buildActionButton(Icons.language, () {}), // Globe placeholder
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

@@ -2,7 +2,7 @@
 /// 所有第三方服务的密钥统一在此管理
 class ApiKeys {
   // 服务器配置
-  static const String baseUrl = 'http://115.190.220.173:1999';
+  static const String baseUrl = 'https://tingyue.top';
   
   // Azure TTS配置
   static const String azureTtsKey = 'YOUR_AZURE_TTS_KEY';

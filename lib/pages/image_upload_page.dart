@@ -423,6 +423,7 @@ class _ImageUploadPageState extends State<ImageUploadPage> {
       userId: result['user_id'] as int? ?? 0,
       fileId: result['file_id'] as int? ?? 0,
       voiceType: result['voice_type'] as String? ?? 'default',
+      voiceName: result['voice_name'] as String? ?? result['voice_type'] as String? ?? '默认声音',
       audioUrl: audioUrl,
       createdAt: DateTime.now(),
       isFavorite: false,

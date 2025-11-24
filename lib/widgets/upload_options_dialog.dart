@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:app_settings/app_settings.dart';
 import '../services/api_service.dart';
 
 /// 上传选项弹出窗口（有状态），在选择并上传时显示加载动画
@@ -105,12 +106,13 @@ class _UploadOptionsDialogState extends State<UploadOptionsDialog> with SingleTi
         }
       },
       child: Container(
-        height: 34, // 固定高度，不再变化
+        height: 50, // 固定高度，不再变化
         width: double.infinity,
         decoration: const BoxDecoration(
           color: Colors.transparent,
         ),
         child: Stack(
+          alignment: Alignment.center,
           children: [
             // 进度条背景
             if (isSelected)
@@ -145,14 +147,14 @@ class _UploadOptionsDialogState extends State<UploadOptionsDialog> with SingleTi
                     label,
                     style: const TextStyle(
                       color: Colors.black,
-                      fontSize: 12,
+                      fontSize: 16,
                       fontWeight: FontWeight.w400,
                     ),
                   ),
                   Icon(
                     icon,
                     color: Colors.black,
-                    size: 16,
+                    size: 24,
                   ),
                 ],
               ),
@@ -171,7 +173,11 @@ class _UploadOptionsDialogState extends State<UploadOptionsDialog> with SingleTi
 
   Future<void> _handleFileImport(BuildContext context) async {
     try {
-      await _requestStoragePermission();
+      final hasPermission = await _requestStoragePermission(context);
+      if (!hasPermission) {
+        _resetSelection();
+        return;
+      }
 
       setState(() => _progress = 0.3);
 
@@ -183,6 +189,21 @@ class _UploadOptionsDialogState extends State<UploadOptionsDialog> with SingleTi
 
       if (result != null && result.files.single.path != null) {
         final file = File(result.files.single.path!);
+        
+        // 检查文件大小（10MB = 10 * 1024 * 1024 bytes）
+        final fileSize = await file.length();
+        const maxSize = 10 * 1024 * 1024; // 10MB
+        
+        if (fileSize > maxSize) {
+          _resetSelection();
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('文件大小超过限制（最大10MB）')),
+            );
+          }
+          return;
+        }
+        
         setState(() => _progress = 0.5);
         
         try {
@@ -215,7 +236,11 @@ class _UploadOptionsDialogState extends State<UploadOptionsDialog> with SingleTi
 
   Future<void> _handleCamera(BuildContext context) async {
     try {
-      await _requestCameraPermission();
+      final hasPermission = await _requestCameraPermission(context);
+      if (!hasPermission) {
+        _resetSelection();
+        return;
+      }
 
       setState(() => _progress = 0.3);
 
@@ -255,7 +280,11 @@ class _UploadOptionsDialogState extends State<UploadOptionsDialog> with SingleTi
 
   Future<void> _handleGallery(BuildContext context) async {
     try {
-      await _requestStoragePermission();
+      final hasPermission = await _requestStoragePermission(context);
+      if (!hasPermission) {
+        _resetSelection();
+        return;
+      }
 
       setState(() => _progress = 0.3);
 
@@ -300,27 +329,120 @@ class _UploadOptionsDialogState extends State<UploadOptionsDialog> with SingleTi
     });
   }
 
-  Future<void> _requestStoragePermission() async {
-    if (Platform.isAndroid) {
-      if (await Permission.photos.request().isGranted ||
-          await Permission.storage.request().isGranted) {
-        return;
+  Future<bool> _requestStoragePermission(BuildContext context) async {
+    if (Platform.operatingSystem == 'ohos') {
+      final status = await Permission.storage.request();
+      if (status.isGranted) {
+        return true;
+      } else if (status.isPermanentlyDenied) {
+        await _showPermissionSettingsDialog(context, '存储');
+        return false;
       }
-    } else if (Platform.isIOS) {
-      if (await Permission.photos.request().isGranted) {
-        return;
-      }
+      return false;
     }
+
+    if (Platform.isAndroid) {
+      final photosStatus = await Permission.photos.request();
+      final storageStatus = await Permission.storage.request();
+      
+      if (photosStatus.isGranted || storageStatus.isGranted) {
+        return true;
+      } else if (photosStatus.isPermanentlyDenied || storageStatus.isPermanentlyDenied) {
+        await _showPermissionSettingsDialog(context, '存储');
+        return false;
+      }
+      return false;
+    } else if (Platform.isIOS) {
+      final status = await Permission.photos.request();
+      if (status.isGranted) {
+        return true;
+      } else if (status.isPermanentlyDenied) {
+        await _showPermissionSettingsDialog(context, '相册');
+        return false;
+      } else if (status.isDenied) {
+        // 用户拒绝了权限，但可以再次请求
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('需要相册权限才能使用此功能')),
+          );
+        }
+        return false;
+      }
+      return false;
+    }
+    return false;
   }
 
-  Future<void> _requestCameraPermission() async {
-    final cameraStatus = await Permission.camera.request();
-    final storageStatus = Platform.isAndroid
-        ? await Permission.storage.request()
-        : await Permission.photos.request();
+  Future<bool> _requestCameraPermission(BuildContext context) async {
+    // 鸿蒙系统处理
+    if (Platform.operatingSystem == 'ohos') {
+      final status = await Permission.camera.request();
+      if (status.isGranted) {
+        return true;
+      } else if (status.isPermanentlyDenied) {
+        await _showPermissionSettingsDialog(context, '相机');
+        return false;
+      }
+      return false;
+    }
 
-    if (!cameraStatus.isGranted || !storageStatus.isGranted) {
-      throw Exception('需要相机和存储权限才能使用此功能');
+    // iOS 处理 - 避免抛出异常
+    if (Platform.isIOS) {
+      final status = await Permission.camera.request();
+      if (status.isGranted) {
+        return true;
+      } else if (status.isPermanentlyDenied) {
+        await _showPermissionSettingsDialog(context, '相机');
+        return false;
+      } else if (status.isDenied) {
+        // 用户拒绝了权限，但可以再次请求
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('需要相机权限才能使用此功能')),
+          );
+        }
+        return false;
+      }
+      return false;
+    }
+
+    // Android 处理
+    final cameraStatus = await Permission.camera.request();
+    final storageStatus = await Permission.storage.request();
+
+    if (cameraStatus.isGranted && storageStatus.isGranted) {
+      return true;
+    } else if (cameraStatus.isPermanentlyDenied || storageStatus.isPermanentlyDenied) {
+      await _showPermissionSettingsDialog(context, '相机和存储');
+      return false;
+    }
+    
+    return false;
+  }
+
+  Future<void> _showPermissionSettingsDialog(BuildContext context, String permissionName) async {
+    if (!context.mounted) return;
+    
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('需要权限'),
+        content: Text('请在设置中开启$permissionName权限以使用此功能'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('去设置'),
+          ),
+        ],
+      ),
+    );
+
+    if (result == true) {
+      await AppSettings.openAppSettings(type: AppSettingsType.settings);
     }
   }
 }

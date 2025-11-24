@@ -276,6 +276,9 @@ class AudioService {
   /// 当前播放的URL
   String? get currentUrl => _currentUrl;
 
+  /// 当前播放的历史记录ID
+  int? get currentHistoryId => _currentHistoryId;
+
   /// 是否正在播放
   bool get isPlaying => _audioPlayer.state == PlayerState.playing;
 

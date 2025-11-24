@@ -67,18 +67,7 @@
 	<dict>
 		<!-- 允许所有 HTTPS 连接 -->
 		<key>NSAllowsArbitraryLoads</key>
-		<false/>
-		<!-- 允许特定 IP 地址的 HTTP 连接 -->
-		<key>NSExceptionDomains</key>
-		<dict>
-			<key>115.190.220.173</key>
-			<dict>
-				<key>NSExceptionAllowsInsecureHTTPLoads</key>
-				<true/>
-				<key>NSIncludesSubdomains</key>
-				<false/>
-			</dict>
-		</dict>
+		<true/>
 	</dict>
 </dict>
 </plist>
