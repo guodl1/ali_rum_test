@@ -4,6 +4,9 @@ class AppConfig {
   static const String appName = '听阅';
   static const String appVersion = '1.0.0';
   
+  // API 配置
+  static const String apiBaseUrl = 'http://tingyue.top:1999/api';
+  
   // 超时配置
   static const int connectionTimeout = 30000; // 30秒
   static const int receiveTimeout = 60000; // 60秒
