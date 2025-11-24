@@ -37,13 +37,23 @@ class _MainNavigatorState extends State<MainNavigator> {
 
     return Scaffold(
       backgroundColor: backgroundColor,
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _pages,
-      ),
-      bottomNavigationBar: BottomNavBar(
-        currentIndex: _currentIndex,
-        onTap: _changePage,
+      extendBody: true,
+      body: Stack(
+        children: [
+          IndexedStack(
+            index: _currentIndex,
+            children: _pages,
+          ),
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: BottomNavBar(
+              currentIndex: _currentIndex,
+              onTap: _changePage,
+            ),
+          ),
+        ],
       ),
     );
   }

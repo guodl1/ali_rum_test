@@ -68,38 +68,50 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
         statusBarIconBrightness: Theme.of(context).brightness == Brightness.dark
             ? Brightness.light
             : Brightness.dark,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarIconBrightness: Theme.of(context).brightness == Brightness.dark
+            ? Brightness.light
+            : Brightness.dark,
       ),
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        appBar: AppBar(
-          title: const Text('History'),
-          elevation: 0,
+      child: Container(
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/background.jpg'),
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: Scaffold(
           backgroundColor: Colors.transparent,
-          bottom: TabBar(
-            controller: _tabController,
-            tabs: const [
-              Tab(text: 'All'),
-              Tab(text: 'Favorites'),
+          appBar: AppBar(
+            title: const Text('History'),
+            elevation: 0,
+            backgroundColor: Colors.transparent,
+            bottom: TabBar(
+              controller: _tabController,
+              tabs: const [
+                Tab(text: 'All'),
+                Tab(text: 'Favorites'),
+              ],
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.search),
+                onPressed: () {
+                  // TODO: 实现搜索功能
+                },
+              ),
             ],
           ),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.search),
-              onPressed: () {
-                // TODO: 实现搜索功能
-              },
-            ),
-          ],
+          body: _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildHistoryList(_allHistory),
+                    _buildHistoryList(_favorites),
+                  ],
+                ),
         ),
-        body: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildHistoryList(_allHistory),
-                  _buildHistoryList(_favorites),
-                ],
-              ),
       ),
     );
   }

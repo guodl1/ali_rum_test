@@ -82,6 +82,10 @@ class AudioDownloadService {
   /// [serverUrl] 服务器音频URL（可以是相对路径或绝对路径）
   /// [onProgress] 下载进度回调 (0.0 - 1.0)
   /// 返回本地文件路径
+  /// 下载音频文件到本地
+  /// [serverUrl] 服务器音频URL（可以是相对路径或绝对路径）
+  /// [onProgress] 下载进度回调 (0.0 - 1.0)
+  /// 返回本地文件路径
   Future<String> downloadAudio(
     String serverUrl, {
     Function(double progress)? onProgress,
@@ -112,30 +116,24 @@ class AudioDownloadService {
       final fileSink = localFile.openWrite();
       int downloadedBytes = 0;
 
-      // 流式下载并更新进度
-      await streamedResponse.stream.listen(
-        (chunk) {
-          fileSink.add(chunk);
-          downloadedBytes += chunk.length;
-          
-          if (contentLength > 0 && onProgress != null) {
-            final progress = downloadedBytes / contentLength;
-            onProgress(progress.clamp(0.0, 1.0));
-          }
-        },
-        onDone: () {
-          fileSink.close();
-          if (onProgress != null) {
-            onProgress(1.0);
-          }
-        },
-        onError: (error) {
-          fileSink.close();
-          localFile.deleteSync(); // 删除不完整的文件
-          throw Exception('Download error: $error');
-        },
-        cancelOnError: true,
-      ).asFuture();
+      // 使用 await for 循环处理流，确保可以正确 await fileSink 操作
+      await for (final chunk in streamedResponse.stream) {
+        fileSink.add(chunk);
+        downloadedBytes += chunk.length;
+        
+        if (contentLength > 0 && onProgress != null) {
+          final progress = downloadedBytes / contentLength;
+          onProgress(progress.clamp(0.0, 1.0));
+        }
+      }
+
+      // 确保文件写入完成并关闭
+      await fileSink.flush();
+      await fileSink.close();
+
+      if (onProgress != null) {
+        onProgress(1.0);
+      }
 
       return localFile.path;
     } catch (e) {
@@ -199,8 +197,15 @@ class AudioDownloadService {
     try {
       await _ensureCacheDir();
       
-      // 生成 titles URL（将音频文件扩展名替换为 .titles）
-      String titlesUrl = audioUrl.replaceAll(RegExp(r'\.(mp3|wav|m4a|ogg|aac|flac)$'), '.titles');
+      // 生成 titles URL（将音频文件扩展名替换为 .titles），不区分大小写
+      final extRegExp = RegExp(r'\.(mp3|wav|m4a|ogg|aac|flac)$', caseSensitive: false);
+      String titlesUrl;
+      if (extRegExp.hasMatch(audioUrl)) {
+        titlesUrl = audioUrl.replaceAll(extRegExp, '.titles');
+      } else {
+        // 如果没有匹配的扩展名，直接追加 .titles
+        titlesUrl = '$audioUrl.titles';
+      }
       
       // 获取完整URL
       final fullUrl = _getFullUrl(titlesUrl);
@@ -211,8 +216,8 @@ class AudioDownloadService {
       String fileName;
       if (segments.isNotEmpty) {
         final lastSegment = segments.last;
-        if (lastSegment.isNotEmpty && lastSegment.contains('.')) {
-          fileName = lastSegment.replaceAll(RegExp(r'\.(mp3|wav|m4a|ogg|aac|flac)$'), '.titles');
+        if (lastSegment.isNotEmpty && lastSegment.toLowerCase().endsWith('.titles')) {
+          fileName = lastSegment;
         } else {
           fileName = 'titles_${titlesUrl.hashCode.abs()}.titles';
         }

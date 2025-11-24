@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import '../services/audio_service.dart';
 import '../services/api_service.dart';
+import '../services/local_history_service.dart';
 import '../models/models.dart';
 import '../models/titles_model.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -26,6 +27,7 @@ class AudioPlayerPage extends StatefulWidget {
 class _AudioPlayerPageState extends State<AudioPlayerPage> with SingleTickerProviderStateMixin {
   final AudioService _audioService = AudioService();
   final ApiService _apiService = ApiService();
+  final LocalHistoryService _localHistoryService = LocalHistoryService();
   
   Duration _currentPosition = Duration.zero;
   Duration _totalDuration = Duration.zero;
@@ -598,73 +600,63 @@ class _AudioPlayerPageState extends State<AudioPlayerPage> with SingleTickerProv
   }
 
   /// 显示更多选项
-  void _showMoreOptions() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        final isDark = Theme.of(context).brightness == Brightness.dark;
-        final backgroundColor = isDark ? const Color(0xFF191815) : const Color(0xFFEEEFDF);
-        final foregroundColor = isDark ? const Color(0xFFF1EEE3) : const Color(0xFF191815);
-        
-        return Container(
-          decoration: BoxDecoration(
-            color: backgroundColor,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+void _showMoreOptions() {
+  showModalBottomSheet(
+    context: context,
+    backgroundColor: Colors.transparent,
+    builder: (context) {
+      final isDark = Theme.of(context).brightness == Brightness.dark;
+      final backgroundColor = isDark ? const Color(0xFF191815) : const Color(0xFFEEEFDF);
+      final foregroundColor = isDark ? const Color(0xFFF1EEE3) : const Color(0xFF191815);
+      
+      return Container(
+        decoration: BoxDecoration(
+          color: backgroundColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: foregroundColor.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 24),
+              
+              _buildOptionItem(
+                icon: Icons.speed,
+                title: '播放速度',
+                foregroundColor: foregroundColor,
+                onTap: () {
+                  Navigator.pop(context);
+                  _showSpeedOptions();
+                },
+              ),
+              
+              _buildOptionItem(
+                icon: widget.history.isFavorite ? Icons.bookmark : Icons.bookmark_border,
+                title: widget.history.isFavorite ? '取消收藏' : '添加到收藏',
+                foregroundColor: foregroundColor,
+                onTap: () async {
+                  Navigator.pop(context);
+                  await _toggleFavorite();
+                },
+              ),
+              
+              const SizedBox(height: 24),
+            ],
           ),
-          child: SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const SizedBox(height: 12),
-                Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: foregroundColor.withOpacity(0.3),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                
-                _buildOptionItem(
-                  icon: Icons.speed,
-                  title: '播放速度',
-                  foregroundColor: foregroundColor,
-                  onTap: () {
-                    Navigator.pop(context);
-                    _showSpeedOptions();
-                  },
-                ),
-                
-                _buildOptionItem(
-                  icon: Icons.bookmark_border,
-                  title: '添加到收藏',
-                  foregroundColor: foregroundColor,
-                  onTap: () {
-                    Navigator.pop(context);
-                    // TODO: 实现收藏功能
-                  },
-                ),
-                
-                _buildOptionItem(
-                  icon: Icons.share,
-                  title: '分享',
-                  foregroundColor: foregroundColor,
-                  onTap: () {
-                    Navigator.pop(context);
-                    // TODO: 实现分享功能
-                  },
-                ),
-                
-                const SizedBox(height: 24),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
+        ),
+      );
+    },
+  );
+}
 
   Widget _buildOptionItem({
     required IconData icon,
@@ -686,7 +678,78 @@ class _AudioPlayerPageState extends State<AudioPlayerPage> with SingleTickerProv
   }
 
   /// 显示播放速度选项
-  void _showSpeedOptions() {
-    // TODO: 实现播放速度调整
+void _showSpeedOptions() {
+  showModalBottomSheet(
+    context: context,
+    backgroundColor: Colors.transparent,
+    builder: (context) {
+      final isDark = Theme.of(context).brightness == Brightness.dark;
+      final backgroundColor = isDark ? const Color(0xFF191815) : const Color(0xFFEEEFDF);
+      final foregroundColor = isDark ? const Color(0xFFF1EEE3) : const Color(0xFF191815);
+      
+      final speeds = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
+      
+      return Container(
+        decoration: BoxDecoration(
+          color: backgroundColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: foregroundColor.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 24),
+              
+              ...speeds.map((speed) => _buildOptionItem(
+                icon: Icons.speed,
+                title: '${speed}x',
+                foregroundColor: foregroundColor,
+                onTap: () async {
+                  Navigator.pop(context);
+                  await _audioService.setPlaybackRate(speed);
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('播放速度已设置为 ${speed}x'),
+                        duration: const Duration(seconds: 1),
+                      ),
+                    );
+                  }
+                },
+              )),
+              
+              const SizedBox(height: 24),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
+  /// 切换收藏状态
+  Future<void> _toggleFavorite() async {
+    final newFavoriteState = !widget.history.isFavorite;
+    await _localHistoryService.toggleFavorite(widget.history.id, newFavoriteState);
+    setState(() {
+      widget.history.isFavorite = newFavoriteState;
+    });
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(widget.history.isFavorite ? '已添加到收藏' : '已取消收藏'),
+          duration: const Duration(seconds: 1),
+        ),
+      );
+    }
   }
 }

@@ -40,7 +40,6 @@ class _VoiceLibraryPageState extends State<VoiceLibraryPage> {
     'mandarin': '普通话',
     'cantonese': '粤语',
     'english': 'English',
-    'other': '其他',
   };
 
   @override
@@ -275,38 +274,48 @@ class _VoiceLibraryPageState extends State<VoiceLibraryPage> {
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
         statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
       ),
-      child: Scaffold(
-        backgroundColor: backgroundColor,
-        body: SafeArea(
-          child: Column(
-            children: [
-              // 固定头部区域
-              Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                child: Column(
+      child: Container(
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/background.jpg'),
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          body: SafeArea(
+            child: Column(
               children: [
-                _buildHeader(textColor),
-                const SizedBox(height: 24),
-                _buildSearchBar(textColor),
-                const SizedBox(height: 16),
-                _buildFilterChips(textColor, accentColor),
-                const SizedBox(height: 20),
-                  ],
+                // 固定头部区域
+                Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  child: Column(
+                children: [
+                  _buildHeader(textColor),
+                  const SizedBox(height: 24),
+                  _buildSearchBar(textColor),
+                  const SizedBox(height: 16),
+                  _buildFilterChips(textColor, accentColor),
+                  const SizedBox(height: 20),
+                    ],
+                  ),
                 ),
-              ),
-              // 可滚动的列表区域
-              Expanded(
-                child: RefreshIndicator(
-                  onRefresh: _loadVoices,
-                  color: accentColor,
-                  backgroundColor: backgroundColor,
-                  child: _isLoading
-                      ? _buildLoadingPlaceholder(textColor)
-                      : _buildVoiceList(textColor),
+                // 可滚动的列表区域
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: _loadVoices,
+                    color: accentColor,
+                    backgroundColor: Colors.transparent,
+                    child: _isLoading
+                        ? _buildLoadingPlaceholder(textColor)
+                        : _buildVoiceList(textColor),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -356,19 +365,19 @@ class _VoiceLibraryPageState extends State<VoiceLibraryPage> {
             ],
           ),
         ),
-        const SizedBox(width: 16),
-        Container(
-          width: 45,
-          height: 45,
-          decoration: BoxDecoration(
-            color: textColor.withValues(alpha: 0.1),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(
-            Icons.graphic_eq,
-            color: textColor,
-          ),
-        ),
+        // const SizedBox(width: 16),
+        // Container(
+        //   width: 45,
+        //   height: 45,
+        //   decoration: BoxDecoration(
+        //     color: textColor.withValues(alpha: 0.1),
+        //     shape: BoxShape.circle,
+        //   ),
+        //   child: Icon(
+        //     Icons.graphic_eq,
+        //     color: textColor,
+        //   ),
+        // ),
       ],
     );
   }

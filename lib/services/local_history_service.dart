@@ -29,6 +29,8 @@ class LocalHistoryService {
   Future<HistoryModel> saveHistory({
     required String audioUrl,
     required String voiceType,
+    required String voiceName,
+    int duration = 0,
     String? resultText,
     String? fileName,
     int? fileId,
@@ -49,9 +51,11 @@ class LocalHistoryService {
       'user_id': userId ?? 0,
       'file_id': fileId ?? 0,
       'voice_type': voiceType,
+      'voice_name': voiceName,
       'audio_url': audioUrl,
       'created_at': DateTime.now().toIso8601String(),
       'is_favorite': false,
+      'duration': duration,
       'file': fileName != null || resultText != null
           ? {
               'id': fileId ?? 0,

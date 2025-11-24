@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:ui';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'dart:io';
@@ -12,6 +13,7 @@ import '../widgets/upload_options_dialog.dart';
 import 'audio_player_page.dart';
 import 'upload_page.dart';
 import 'login_page.dart';
+import '../widgets/bottom_nav_bar.dart';
 
 /// 主页 - 严格按照 home-structure.json 设计
 /// 参考 home.svg 的视觉效果
@@ -33,6 +35,7 @@ class _HomePageState extends State<HomePage> {
   List<HistoryModel> _history = [];
   bool _isLoading = false;
   bool _hasLoadedOnce = false;
+  int _navIndex = 0;
   bool _isProcessingFile = false;
 
   @override
@@ -124,11 +127,9 @@ class _HomePageState extends State<HomePage> {
     final size = renderBox.size;
     
     // 计算位置：在按钮下方，右对齐
-    // 按钮在右上角，所以对话框应该在按钮下方
-    final top = offset.dy + size.height + 8; // 按钮下方 8px
-    // 右对齐：按钮右边缘 - 对话框宽度
-    // offset.dx 是按钮左边缘，offset.dx + size.width 是按钮右边缘
-    final left = offset.dx + size.width - 227; 
+    final dialogWidth = 240.0; // 降低宽度
+    final top = offset.dy + size.height + 8; 
+    final left = offset.dx + size.width - dialogWidth; 
 
     final result = await showGeneralDialog(
       context: context,
@@ -406,58 +407,97 @@ class _HomePageState extends State<HomePage> {
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
         statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
       ),
       child: Scaffold(
-        backgroundColor: backgroundColor,
-        body: SafeArea(
-          child: Column(
+        backgroundColor: Colors.transparent,
+        extendBody: true,
+        extendBodyBehindAppBar: true,
+        body: Container(
+          decoration: const BoxDecoration(
+            image: DecorationImage(
+              image: AssetImage('assets/background.jpg'),
+              fit: BoxFit.cover,
+            ),
+          ),
+          child: SafeArea(
+            child: Stack(
             children: [
-              // 顶部标题栏 - 参考 home-structure.json 的 title frame (343x48)
-              _buildTopBar(textColor),
-              
-              // 内容区域 - 历史记录列表
-              Expanded(
-                child: RefreshIndicator(
-                  onRefresh: _loadHistory,
-                  color: const Color(0xFF3742D7),
-                  backgroundColor: backgroundColor,
-                  child: _isLoading && !_hasLoadedOnce
-                      ? _buildLoadingState(textColor)
-                      : groupedHistory.isEmpty
-                          ? _buildEmptyState(textColor)
-                          : ListView(
-                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                              children: [
-                                ...groupedHistory.entries.expand((entry) {
-                                  final label = entry.key;
-                                  final items = entry.value;
-                                  return [
-                                    Padding(
-                                      padding: const EdgeInsets.only(top: 12, bottom: 8),
-                                      child: Text(
-                                        label,
-                                        style: TextStyle(
-                                          color: textColor.withValues(alpha: 0.6),
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w400,
+              Column(
+                children: [
+                  // 顶部标题栏 - 参考 home-structure.json 的 title frame (343x48)
+                  _buildTopBar(textColor),
+                  
+                  // 内容区域 - 历史记录列表
+                  Expanded(
+                    child: RefreshIndicator(
+                      onRefresh: _loadHistory,
+                      color: const Color(0xFF3742D7),
+                      backgroundColor: Colors.transparent,
+                      child: _isLoading && !_hasLoadedOnce
+                          ? _buildLoadingState(textColor)
+                          : groupedHistory.isEmpty
+                              ? _buildEmptyState(textColor)
+                              : ListView(
+                                  padding: const EdgeInsets.only(left: 20, right: 20, top: 16, bottom: 100),
+                                  children: [
+                                    ...groupedHistory.entries.expand((entry) {
+                                      final label = entry.key;
+                                      final items = entry.value;
+                                      return [
+                                        Padding(
+                                          padding: const EdgeInsets.only(top: 12, bottom: 8),
+                                          child: Text(
+                                            label,
+                                            style: TextStyle(
+                                              color: textColor.withValues(alpha: 0.6),
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w400,
+                                            ),
+                                          ),
                                         ),
-                                      ),
-                                    ),
-                                    ...items.map(
-                                      (history) => _buildHistoryCard(history, textColor),
-                                    ),
-                                  ];
-                                }),
-                              ],
-                            ),
-                ),
+                                        ...items.map(
+                                          (history) => _buildHistoryCard(history, textColor),
+                                        ),
+                                      ];
+                                    }),
+                                  ],
+                                ),
+                    ),
+                  ),
+                ],
               ),
-              
-              // 底部导航栏 - 参考 home-structure.json 的 nav frame (345x81)
+              // 底部导航栏
+              // Positioned(
+              //   bottom: 0,
+              //   left: 0,
+              //   right: 0,
+              //   child: BottomNavBar(
+              //     currentIndex: _navIndex,
+              //     onTap: (index) {
+              //       setState(() {
+              //         _navIndex = index;
+              //       });
+              //       if (index == 1) {
+              //         Navigator.of(context).push(
+              //           MaterialPageRoute(builder: (context) => const LoginPage()),
+              //         ).then((_) {
+              //           if (mounted) {
+              //             setState(() {
+              //               _navIndex = 0;
+              //             });
+              //           }
+              //         });
+              //       }
+              //     },
+              //   ),
+              // ),
             ],
           ),
         ),
       ),
+    ),
     );
   }
 
@@ -537,91 +577,214 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  /// 历史记录卡片 - 参考 home-structure.json 的 rounded-rectangle (307x77)
+  Future<void> _toggleFavorite(HistoryModel history) async {
+    await _localHistoryService.toggleFavorite(history.id, !history.isFavorite);
+    _loadHistory();
+  }
+
+  Future<void> _deleteHistory(HistoryModel history) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('确认删除'),
+        content: const Text('确定要删除这条记录吗？'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('取消')),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('删除', style: TextStyle(color: Colors.red))),
+        ],
+      ),
+    );
+    
+    if (confirm == true) {
+      await _localHistoryService.deleteHistory(history.id);
+      _loadHistory();
+    }
+  }
+
+  String _formatDuration(int seconds) {
+    final m = seconds ~/ 60;
+    final s = seconds % 60;
+    return '$m:${s.toString().padLeft(2, '0')}';
+  }
+
+  String _formatSize(int bytes) {
+    if (bytes <= 0) return '0 B';
+    const suffixes = ['B', 'KB', 'MB', 'GB'];
+    var i = 0;
+    double size = bytes.toDouble();
+    while (size >= 1024 && i < suffixes.length - 1) {
+      size /= 1024;
+      i++;
+    }
+    return '${size.toStringAsFixed(1)} ${suffixes[i]}';
+  }
+
+  Widget _buildActionButton(IconData icon, VoidCallback onTap, {Color? color}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Icon(
+          icon,
+          size: 20,
+          color: color ?? Colors.black54,
+        ),
+      ),
+    );
+  }
+
+  /// 历史记录卡片 - 液态玻璃风格
   Widget _buildHistoryCard(HistoryModel history, Color textColor) {
     final screenWidth = MediaQuery.of(context).size.width;
-    final cardWidth = (screenWidth - 60).clamp(280.0, 500.0); // 响应式宽度
+    final cardWidth = (screenWidth - 40).clamp(280.0, 600.0);
     
     return Container(
       width: cardWidth,
-      height: 77,
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: const Color(0xFFE8E1C4), // rgb(232, 225, 196)
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 15,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Row(
-          children: [
-            // 左侧：时间和播放源
-            Expanded(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.6),
+              border: Border.all(
+                color: Colors.white.withOpacity(0.5),
+                width: 1.5,
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
                 children: [
-                  // 时间标签
-                  Text(
-                    _timeFormat.format(history.createdAt),
-                    style: const TextStyle(
-                      color: Color(0xFF716161), // rgb(113, 97, 97)
-                      fontSize: 14,
-                      fontWeight: FontWeight.w400,
-                      height: 1.2,
-                    ),
+                  // Top Row: Voice Name & Date
+                  Row(
+                    children: [
+                      Icon(Icons.record_voice_over, size: 16, color: textColor.withOpacity(0.6)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          history.voiceName,
+                          style: TextStyle(
+                            color: textColor,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      Text(
+                        DateFormat('yyyy-MM-dd HH:mm').format(history.createdAt),
+                        style: TextStyle(
+                          color: textColor.withOpacity(0.5),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 2),
-                  // 播放声音源
-                  Text(
-                    history.voiceType,
-                    style: const TextStyle(
-                      color: Color(0xFF716161),
-                      fontSize: 14,
-                      fontWeight: FontWeight.w400,
-                      height: 1.2,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  const SizedBox(height: 12),
+                  
+                  // Middle: Title & Content
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              history.fileName ?? 'Untitled',
+                              style: TextStyle(
+                                color: textColor,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            if (history.resultText != null) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                history.resultText!,
+                                style: TextStyle(
+                                  color: textColor.withOpacity(0.7),
+                                  fontSize: 13,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                            const SizedBox(height: 8),
+                            // Size and Duration
+                            Text(
+                              '${_formatSize(history.file?.size ?? 0)} • ${_formatDuration(history.duration ?? 0)}',
+                              style: TextStyle(
+                                color: textColor.withOpacity(0.5),
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      // Play Button
+                      GestureDetector(
+                        onTap: () => _openAudioPlayer(history),
+                        child: Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF4CAF50), // Green
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF4CAF50).withOpacity(0.4),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.play_arrow,
+                            color: Colors.white,
+                            size: 28,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 2),
-                  // 标题
-                  Text(
-                    history.file?.originalName ?? 'title',
-                    style: const TextStyle(
-                      color: Colors.black,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w400,
-                      height: 1.2,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  
+                  const SizedBox(height: 16),
+                  // Bottom Actions
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _buildActionButton(Icons.download, () {}), // Download placeholder
+                      _buildActionButton(Icons.delete_outline, () => _deleteHistory(history)),
+                      _buildActionButton(
+                        history.isFavorite ? Icons.star : Icons.star_border,
+                        () => _toggleFavorite(history),
+                        color: history.isFavorite ? Colors.amber : null,
+                      ),
+                      _buildActionButton(Icons.language, () {}), // Globe placeholder
+                    ],
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 8),
-            // 右侧：播放图标
-            GestureDetector(
-              onTap: () => _openAudioPlayer(history),
-              child: Container(
-                width: 29,
-                height: 29,
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: const Color(0xFF757575), // rgb(117, 117, 117)
-                    width: 4,
-                  ),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.play_arrow,
-                  size: 16,
-                  color: Color(0xFF757575),
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -666,7 +829,7 @@ class _HomePageState extends State<HomePage> {
       ),
     );
     if (mounted) {
-      _loadHistory();
+      _checkAndRefreshHistory();
     }
   }
 }

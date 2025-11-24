@@ -251,7 +251,16 @@ class AudioService {
     try {
       await _audioPlayer.setVolume(volume);
     } catch (e) {
-      throw Exception('Set volume error: $e');
+      print('Error setting volume: $e');
+    }
+  }
+
+  /// 设置播放速度 (0.5 - 2.0)
+  Future<void> setPlaybackRate(double rate) async {
+    try {
+      await _audioPlayer.setPlaybackRate(rate);
+    } catch (e) {
+      print('Error setting playback rate: $e');
     }
   }
 

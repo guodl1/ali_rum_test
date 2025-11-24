@@ -87,9 +87,11 @@ class HistoryModel {
   final int userId;
   final int fileId;
   final String voiceType;
+  final String voiceName;
   final String audioUrl;
   final DateTime createdAt;
   bool isFavorite;
+  final int? duration; // Duration in seconds
   final FileModel? file;
 
   HistoryModel({
@@ -97,9 +99,11 @@ class HistoryModel {
     required this.userId,
     required this.fileId,
     required this.voiceType,
+    required this.voiceName,
     required this.audioUrl,
     required this.createdAt,
     required this.isFavorite,
+    this.duration,
     this.file,
   });
 
@@ -115,9 +119,11 @@ class HistoryModel {
       userId: json['user_id'],
       fileId: json['file_id'],
       voiceType: json['voice_type'],
+      voiceName: json['voice_name'] ?? json['voice_type'], // 兼容旧数据
       audioUrl: json['audio_url'],
       createdAt: DateTime.parse(json['created_at']),
       isFavorite: json['is_favorite'] ?? false,
+      duration: json['duration'],
       file: json['file'] != null ? FileModel.fromJson(json['file']) : null,
     );
   }
@@ -128,9 +134,11 @@ class HistoryModel {
       'user_id': userId,
       'file_id': fileId,
       'voice_type': voiceType,
+      'voice_name': voiceName,
       'audio_url': audioUrl,
       'created_at': createdAt.toIso8601String(),
       'is_favorite': isFavorite,
+      'duration': duration,
       'file': file?.toJson(),
     };
   }

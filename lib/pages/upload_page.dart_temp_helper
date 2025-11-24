@@ -1,0 +1,115 @@
+  /// 处理单个生成任务（API调用 -> 轮询 -> 下载）
+  /// 返回是否成功
+  Future<bool> _processGeneration({
+    required String text,
+    int? fileId,
+    required String provider,
+    String? voiceId,
+    String? voiceType,
+    String? model,
+    int? partIndex,
+    int? totalParts,
+  }) async {
+    try {
+      final genResp = await _apiService.generateAudio(
+        text: text,
+        provider: provider,
+        voiceType: voiceType,
+        voiceId: voiceId,
+        model: model,
+        fileId: fileId,
+      );
+
+      if (genResp['taskId'] == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Generate failed: ${genResp['error'] ?? 'No taskId returned'}')));
+        }
+        return false;
+      }
+
+      final String taskId = genResp['taskId'].toString();
+
+      // 检查同步响应
+      if (genResp['status'] == 'completed' && genResp['audio_url'] != null) {
+        final audioUrl = genResp['audio_url'].toString();
+        if (audioUrl.isNotEmpty) {
+          await _downloadAndPlayAudio(audioUrl, partIndex: partIndex, totalParts: totalParts);
+          return true;
+        }
+      }
+
+      // 轮询
+      int attempts = 0;
+      const maxAttempts = 180;
+      const interval = Duration(seconds: 2);
+      bool taskCompleted = false;
+      bool success = false;
+
+      while (attempts < maxAttempts && !taskCompleted) {
+        await Future.delayed(interval);
+        attempts += 1;
+        
+        try {
+          final statusResp = await _apiService.getTaskStatus(taskId);
+          final data = statusResp['data'] ?? statusResp;
+          final st = (data != null && data['status'] != null) ? data['status'].toString() : '';
+          final progress = data != null && data['progress'] != null ? data['progress'] : null;
+          final message = data != null && data['message'] != null ? data['message'] : null;
+
+          if (mounted && progress != null && totalParts == null) {
+             // 只有在非分段模式下才更新全局进度，分段模式下进度由外部控制
+            setState(() {
+              _generateProgress = (progress as num).toDouble() / 100.0;
+            });
+          }
+
+          if (st == 'completed' || st == 'done') {
+            final audioUrl = data['result'] != null && data['result']['audio_url'] != null
+                ? data['result']['audio_url'].toString()
+                : (data['audio_url'] != null ? data['audio_url'].toString() : null);
+            
+            if (audioUrl != null && audioUrl.isNotEmpty) {
+              await _downloadAndPlayAudio(audioUrl, partIndex: partIndex, totalParts: totalParts);
+              taskCompleted = true;
+              success = true;
+            } else {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Task completed but audio URL missing')),
+                );
+              }
+              taskCompleted = true;
+            }
+            break;
+          } else if (st == 'failed') {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('TTS failed: ${message ?? 'Unknown error'}')),
+              );
+            }
+            taskCompleted = true;
+            break;
+          }
+        } catch (e) {
+          print('Polling task error: $e');
+          if (!mounted) break;
+        }
+      }
+      
+      if (!taskCompleted && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Task timeout, please try again')),
+        );
+      }
+      
+      return success;
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+      return false;
+    }
+  }

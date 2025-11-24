@@ -131,118 +131,126 @@ class _SettingsPageState extends State<SettingsPage> {
         ? const Color(0xFF191815)
         : const Color(0xFFF1EEE3);
 
-    return Scaffold(
-      backgroundColor: backgroundColor,
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(20),
-          children: [
-            // 标题
-            Text(
-              'Settings',
-              style: TextStyle(
-                color: textColor,
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 32),
-            
-            // 用户信息卡片
-            _buildUserInfoCard(textColor, cardColor),
-            const SizedBox(height: 16),
-            
-            // 使用情况卡片
-            _buildUsageStatsCard(textColor, cardColor),
-            const SizedBox(height: 16),
-            
-            // 会员升级卡片
-            _buildMembershipCard(textColor, cardColor),
-            const SizedBox(height: 32),
-            
-            // 隐私协议卡片 (基于 settingg-structure.json)
-            _buildSettingCard(
-              icon: Icons.privacy_tip,
-              title: '隐私协议',
-              subtitle: 'Privacy Policy',
-              cardColor: cardColor,
-              textColor: textColor,
-              onTap: () => _showPrivacyPolicy(),
-            ),
-            const SizedBox(height: 16),
-            
-            // 联系我们卡片
-            _buildSettingCard(
-              icon: Icons.email,
-              title: '联系我们',
-              subtitle: ApiKeys.contactEmail,
-              cardColor: cardColor,
-              textColor: textColor,
-              onTap: () => _contactUs(),
-            ),
-            const SizedBox(height: 16),
-            
-            // 语言切换
-            _buildSettingCard(
-              icon: Icons.language,
-              title: _selectedLanguage == 'zh' ? '中文' : 'English',
-              subtitle: 'Language',
-              cardColor: cardColor,
-              textColor: textColor,
-              trailing: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF3742D7),
-                  borderRadius: BorderRadius.circular(20),
+    return Container(
+      decoration: const BoxDecoration(
+        image: DecorationImage(
+          image: AssetImage('assets/background.jpg'),
+          fit: BoxFit.cover,
+        ),
+      ),
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.all(20),
+            children: [
+              // 标题
+              Text(
+                'Settings',
+                style: TextStyle(
+                  color: textColor,
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
                 ),
-                child: Text(
-                  '切换',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
+              ),
+              const SizedBox(height: 32),
+              
+              // 用户信息卡片
+              _buildUserInfoCard(textColor, cardColor),
+              const SizedBox(height: 16),
+              
+              // 使用情况卡片
+              _buildUsageStatsCard(textColor, cardColor),
+              const SizedBox(height: 16),
+              
+              // 会员升级卡片
+              _buildMembershipCard(textColor, cardColor),
+              const SizedBox(height: 32),
+              
+              // 隐私协议卡片 (基于 settingg-structure.json)
+              _buildSettingCard(
+                icon: Icons.privacy_tip,
+                title: '隐私协议',
+                subtitle: 'Privacy Policy',
+                cardColor: cardColor,
+                textColor: textColor,
+                onTap: () => _showPrivacyPolicy(),
+              ),
+              const SizedBox(height: 16),
+              
+              // 联系我们卡片
+              _buildSettingCard(
+                icon: Icons.email,
+                title: '联系我们',
+                subtitle: ApiKeys.contactEmail,
+                cardColor: cardColor,
+                textColor: textColor,
+                onTap: () => _contactUs(),
+              ),
+              const SizedBox(height: 16),
+              
+              // 语言切换
+              _buildSettingCard(
+                icon: Icons.language,
+                title: _selectedLanguage == 'zh' ? '中文' : 'English',
+                subtitle: 'Language',
+                cardColor: cardColor,
+                textColor: textColor,
+                trailing: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF3742D7),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    '切换',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
+                onTap: () => _showLanguageDialog(),
               ),
-              onTap: () => _showLanguageDialog(),
-            ),
-            const SizedBox(height: 16),
-            
-            // 主题切换
-            _buildSettingCard(
-              icon: Icons.palette,
-              title: _getThemeName(),
-              subtitle: 'Theme',
-              cardColor: cardColor,
-              textColor: textColor,
-              trailing: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF3742D7),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  '切换',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
+              const SizedBox(height: 16),
+              
+              // 主题切换
+              _buildSettingCard(
+                icon: Icons.palette,
+                title: _getThemeName(),
+                subtitle: 'Theme',
+                cardColor: cardColor,
+                textColor: textColor,
+                trailing: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF3742D7),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    '切换',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
+                onTap: () => _showThemeDialog(),
               ),
-              onTap: () => _showThemeDialog(),
-            ),
-            const SizedBox(height: 16),
-            
-            // 版本信息
-            _buildSettingCard(
-              icon: Icons.info,
-              title: 'Version',
-              subtitle: '1.0.0',
-              cardColor: cardColor,
-              textColor: textColor,
-            ),
-          ],
+              const SizedBox(height: 16),
+              
+              // 版本信息
+              _buildSettingCard(
+                icon: Icons.info,
+                title: 'Version',
+                subtitle: '1.0.0',
+                cardColor: cardColor,
+                textColor: textColor,
+              ),
+            ],
+          ),
         ),
       ),
     );

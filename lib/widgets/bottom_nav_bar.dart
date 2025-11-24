@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'liquid_glass_card.dart';
 
 /// 底部导航栏组件
 /// 基于 Figma 设计的导航栏
@@ -27,34 +28,35 @@ class BottomNavBar extends StatelessWidget {
         ? const Color(0xFFF1EEE3) // rgb(241, 238, 227)
         : const Color(0xFFF1EEE3);
 
-    return Container(
+    return LiquidGlassCard(
       height: 81,
-      margin: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: navBarColor,
-        borderRadius: BorderRadius.circular(100),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(13),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            _buildNavItem(
-              icon: Icons.home,
-              index: 0,
-              isActive: currentIndex == 0,
-              activeColor: activeColor,
-              inactiveColor: inactiveColor,
-            ),
-            _buildNavItem(
-              icon: Icons.person,
-              index: 1,
-              isActive: currentIndex == 1,
-              activeColor: activeColor,
-              inactiveColor: inactiveColor,
-            ),
-          ],
-        ),
+      margin: const EdgeInsets.only(left: 16, right: 16, bottom: 64),
+      borderRadius: 100,
+      backgroundColor: isDark 
+          ? Colors.black.withOpacity(0.3) 
+          : Colors.white.withOpacity(0.2),
+      blurIntensity: 3,
+      enableAdvancedEffect: false,
+      padding: const EdgeInsets.symmetric(horizontal: 13),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _buildNavItem(
+            icon: Icons.home,
+            index: 0,
+            isActive: currentIndex == 0,
+            activeColor: activeColor,
+            inactiveColor: inactiveColor,
+          ),
+          const SizedBox(width: 32), // 增加间距
+          _buildNavItem(
+            icon: Icons.person,
+            index: 1,
+            isActive: currentIndex == 1,
+            activeColor: activeColor,
+            inactiveColor: inactiveColor,
+          ),
+        ],
       ),
     );
   }
@@ -68,6 +70,7 @@ class BottomNavBar extends StatelessWidget {
   }) {
     return GestureDetector(
       onTap: () => onTap(index),
+      behavior: HitTestBehavior.opaque, // 确保点击区域有效
       child: Container(
         width: 81,
         height: 64,
@@ -81,7 +84,7 @@ class BottomNavBar extends StatelessWidget {
           children: [
             Icon(
               icon,
-              color: inactiveColor,
+              color: Colors.black,
               size: 28,
             ),
             if (isActive) ...[

@@ -1,5 +1,6 @@
 
 import 'package:flutter/material.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
@@ -7,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:permission_handler/permission_handler.dart';
 import '../widgets/liquid_glass_card.dart';
+import '../widgets/url_input_dialog.dart';
 import '../services/file_service.dart';
 import '../services/api_service.dart';
 import '../services/audio_service.dart';
@@ -127,6 +129,40 @@ class _UploadPageState extends State<UploadPage> {
   int _playStartIndex = 0; // 文本播放起点（字符索引）
   int _playEndIndex = 0; // 文本播放终点（字符索引，0表示到结尾）
 
+  // 大文本处理
+  bool get _isLargeText => (_extractedText?.length ?? 0) > _maxTextLength;
+  List<String> _textParts = [];
+  static const int _maxTextLength = 50000;
+  static const int _splitChunkSize = 30000; // 分段大小，留出余量
+
+  /// 处理提取的文本
+  void _processExtractedText(String text) {
+    _extractedText = text;
+    _textParts.clear();
+    
+    if (text.length > _maxTextLength) {
+      // 大文本模式下，PreviewController 不显示完整文本，避免卡顿
+      _previewTextController.text = '文本过长（${text.length}字符），已隐藏预览内容。\n\n点击下方生成按钮开始处理。';
+    } else {
+      _previewTextController.text = text;
+    }
+
+    // 自动检测语言
+    final detectedLang = _languageService.detectLanguage(text);
+    if (detectedLang != 'unknown') {
+      // 如果当前没有选中的语音，或者当前语音语言不匹配，提示用户
+      // 这里简单起见，只显示提示
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('检测到${detectedLang == "zh" ? "中文" : "英文"}内容'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -134,8 +170,7 @@ class _UploadPageState extends State<UploadPage> {
     _inlineTextController.addListener(_onTextChanged);
     // 只使用传入的文本，不加载缓存
     if (widget.initialText != null && widget.initialText!.isNotEmpty) {
-      _extractedText = widget.initialText;
-      _previewTextController.text = widget.initialText!;
+      _processExtractedText(widget.initialText!);
     }
     // 尝试加载上次选中的语音（如果有），否则尝试设置一个默认语音
     _loadLastSelectedVoice();
@@ -218,37 +253,76 @@ class _UploadPageState extends State<UploadPage> {
       _previewTextController.text = _extractedText!;
     }
 
-    return Scaffold(
-      backgroundColor: backgroundColor,
-      body: SafeArea(
-        // 确保所有内容在安全区域内，底部留出额外空间避免手势条遮挡
-        minimum: EdgeInsets.only(
-          bottom: sizes.safeArea.bottom > 0 ? 0 : sizes.mediumSpacing,
+    return Container(
+      decoration: const BoxDecoration(
+        image: DecorationImage(
+          image: AssetImage('assets/background.jpg'),
+          fit: BoxFit.cover,
         ),
-        child: SingleChildScrollView(
-          padding: EdgeInsets.symmetric(
-            horizontal: sizes.isTablet ? sizes.screenWidth * 0.1 : 20,
-            vertical: sizes.smallSpacing,
+      ),
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: SafeArea(
+          // 确保所有内容在安全区域内，底部留出额外空间避免手势条遮挡
+          minimum: EdgeInsets.only(
+            bottom: sizes.safeArea.bottom > 0 ? 0 : sizes.mediumSpacing,
           ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              SizedBox(height: sizes.smallSpacing),
-              SizedBox(height: sizes.largeSpacing),
+              // 返回按钮
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  children: [
+                    GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF191815),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.arrow_back,
+                          color: Color(0xFFF1EEE3),
+                          size: 24,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               
-              // 提取的文本预览（可滚动，超出渐隐）
-              _buildTextPreview(sizes),
-              SizedBox(height: sizes.largeSpacing),
-              
-              // 语音选择
-              _buildVoiceSelection(sizes),
-              SizedBox(height: sizes.largeSpacing),
-              
-              // 生成按钮
-              _buildGenerateButton(sizes),
-              
-              // 底部额外间距，确保按钮不被遮挡
-              SizedBox(height: sizes.mediumSpacing),
+              // 主内容区域
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: sizes.isTablet ? sizes.screenWidth * 0.1 : 20,
+                    vertical: sizes.smallSpacing,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      SizedBox(height: sizes.smallSpacing),
+                      
+                      // 提取的文本预览（可滚动，超出渐隐）
+                      _buildTextPreview(sizes),
+                      SizedBox(height: sizes.largeSpacing),
+                      
+                      // 语音选择
+                      _buildVoiceSelection(sizes),
+                      SizedBox(height: sizes.largeSpacing),
+                      
+                      // 生成按钮
+                      _buildGenerateButton(sizes),
+                      
+                      // 底部额外间距，确保按钮不被遮挡
+                      SizedBox(height: sizes.mediumSpacing),
+                    ],
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -293,13 +367,7 @@ class _UploadPageState extends State<UploadPage> {
               child: _buildOptionButton(
                 icon: Icons.link,
                 label: '打开网址',
-                onTap: () {
-                  setState(() {
-                    _inlineUrlController.text =
-                        _urlController.text.isNotEmpty ? _urlController.text : 'https://';
-                    _interactionMode = UploadInteractionMode.urlInput;
-                  });
-                },
+                onTap: _showUrlInputDialog,
               ),
             ),
           ],
@@ -461,7 +529,7 @@ class _UploadPageState extends State<UploadPage> {
                   final entered = _inlineTextController.text.trim();
                   setState(() {
                     _showTextCompleteButton = false;
-                    _extractedText = entered;
+                    _processExtractedText(entered);
                     _interactionMode = UploadInteractionMode.none;
                   });
                   if (mounted && entered.isEmpty) {
@@ -893,137 +961,62 @@ class _UploadPageState extends State<UploadPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(
+        Container(
           height: sizes.textPreviewHeight,
-          child: Column(
+          decoration: BoxDecoration(
+            border: Border(
+              top: BorderSide(color: Colors.grey.shade300, width: 1),
+              left: BorderSide(color: Colors.grey.shade300, width: 1),
+              right: BorderSide(color: Colors.grey.shade300, width: 1),
+            ),
+          ),
+          child: Stack(
             children: [
-              Expanded(
+              // 全高度渐变背景层
+              Positioned.fill(
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        const Color(0xFFEEEFDF), // 顶部实色背景
+                        const Color(0xFFEEEFDF), // 中间保持实色
+                        Colors.transparent, // 底部透明，显示页面背景
+                      ],
+                      stops: const [0.0, 1, 1.0], // 70%实色，30%渐变到透明
+                    ),
+                  ),
+                ),
+              ),
+              // 可滚动的文本编辑区域
+              SingleChildScrollView(
+                controller: _textScrollController,
                 child: Padding(
                   padding: EdgeInsets.symmetric(
-                    horizontal: 4,
+                    horizontal: 12,
                     vertical: sizes.smallSpacing,
                   ),
                   child: TextField(
                     controller: _previewTextController,
                     keyboardType: TextInputType.multiline,
                     maxLines: null,
-                    expands: true,
-                    textAlignVertical: TextAlignVertical.top,
-                    style: TextStyle(
-                      fontSize: sizes.bodyFontSize,
+                    cursorColor: const Color(0xFF191815), // 使用深色光标
+                    cursorWidth: 2.0, // 增加光标宽度
+                    autofocus: true,
+                    style: const TextStyle(
+                      fontSize: 14,
                       height: 1.5,
-                      color: Theme.of(context).textTheme.bodyLarge?.color?.withOpacity(0.8),
+                      color: Color(0xFF191815), // 文本颜色
                     ),
                     decoration: const InputDecoration(
                       border: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      errorBorder: InputBorder.none,
-                      disabledBorder: InputBorder.none,
-                      hintText: '在此输入或编辑文本...',
-                      hintStyle: TextStyle(color: Colors.grey),
                       contentPadding: EdgeInsets.zero,
                     ),
-                    onChanged: (text) {
-                      setState(() {
-                        _extractedText = text;
-                      });
+                    onChanged: (value) {
+                      _extractedText = value;
                     },
                   ),
-                ),
-              ),
-              // 底部工具栏：设为起点、删除选中、插入文本、显示起点位置
-              Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: 0,
-                  vertical: sizes.tinySpacing,
-                ),
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final isSmall = constraints.maxWidth < 400;
-                    return isSmall
-                        ? Wrap(
-                            spacing: sizes.tinySpacing,
-                            runSpacing: sizes.tinySpacing,
-                            children: [
-                              TextButton(
-                                onPressed: _setPlayStartFromSelection,
-                                child: Text(
-                                  '设为起点',
-                                  style: TextStyle(
-                                    fontSize: sizes.smallFontSize,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                              ),
-                              TextButton(
-                                onPressed: _deleteSelectionInPreview,
-                                child: Text(
-                                  '删除选中',
-                                  style: TextStyle(
-                                    fontSize: sizes.smallFontSize,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                              ),
-                              TextButton(
-                                onPressed: _insertTextAtCursor,
-                                child: Text(
-                                  '插入文本',
-                                  style: TextStyle(
-                                    fontSize: sizes.smallFontSize,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                              ),
-                              Padding(
-                                padding: EdgeInsets.only(
-                                  top: sizes.smallSpacing,
-                                  left: sizes.tinySpacing,
-                                ),
-                                child: Text(
-                                  '起点: $_playStartIndex',
-                                  style: TextStyle(
-                                    fontSize: sizes.smallFontSize,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          )
-                        : Row(
-                            children: [
-                              TextButton(
-                                onPressed: _setPlayStartFromSelection,
-                                child: const Text(
-                                  '设为起点',
-                                  style: TextStyle(color: Colors.grey),
-                                ),
-                              ),
-                              SizedBox(width: sizes.tinySpacing),
-                              TextButton(
-                                onPressed: _deleteSelectionInPreview,
-                                child: const Text(
-                                  '删除选中',
-                                  style: TextStyle(color: Colors.grey),
-                                ),
-                              ),
-                              SizedBox(width: sizes.tinySpacing),
-                              TextButton(
-                                onPressed: _insertTextAtCursor,
-                                child: const Text(
-                                  '插入文本',
-                                  style: TextStyle(color: Colors.grey),
-                                ),
-                              ),
-                              const Spacer(),
-                              Text(
-                                '起点: $_playStartIndex',
-                                style: const TextStyle(color: Colors.grey),
-                              ),
-                            ],
-                          );
-                  },
                 ),
               ),
             ],
@@ -1033,17 +1026,25 @@ class _UploadPageState extends State<UploadPage> {
     );
   }
 
-
   void _setPlayStartFromSelection() {
     final sel = _previewTextController.selection;
     if (sel.start < 0) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请先选择或把光标放到想设置为起点的位置')));
       return;
     }
+    
+    // 删除起点之前的所有内容
+    final text = _previewTextController.text;
+    final newText = text.substring(sel.start);
+    
     setState(() {
-      _playStartIndex = sel.start;
+      _previewTextController.text = newText;
+      _previewTextController.selection = TextSelection.collapsed(offset: 0);
+      _extractedText = newText;
+      _playStartIndex = 0; // 重置起点为0，因为已经删除了前面的内容
     });
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已设置播放起点')));
+    
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已删除起点前的内容')));
   }
 
   void _deleteSelectionInPreview() {
@@ -1057,32 +1058,6 @@ class _UploadPageState extends State<UploadPage> {
     setState(() {
       _previewTextController.text = newText;
       _previewTextController.selection = TextSelection.collapsed(offset: sel.start);
-    });
-  }
-
-  Future<void> _insertTextAtCursor() async {
-    final toInsert = await showDialog<String?>(
-      context: context,
-      builder: (context) {
-        final controller = TextEditingController();
-        return AlertDialog(
-          title: const Text('插入文本'),
-          content: TextField(controller: controller, autofocus: true),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context, null), child: const Text('取消')),
-            TextButton(onPressed: () => Navigator.pop(context, controller.text), child: const Text('插入')),
-          ],
-        );
-      },
-    );
-    if (toInsert == null || toInsert.isEmpty) return;
-    final sel = _previewTextController.selection;
-    final pos = sel.start >= 0 ? sel.start : _previewTextController.text.length;
-    final text = _previewTextController.text;
-    final newText = text.replaceRange(pos, pos, toInsert);
-    setState(() {
-      _previewTextController.text = newText;
-      _previewTextController.selection = TextSelection.collapsed(offset: pos + toInsert.length);
     });
   }
 
@@ -1270,19 +1245,7 @@ class _UploadPageState extends State<UploadPage> {
           final text = await _fileService.readTextFile(file);
           if (text != null) {
             setState(() {
-              _extractedText = text;
-              // 自动检测语言
-              final detectedLang = _languageService.detectLanguage(text);
-              if (detectedLang != 'unknown') {
-                final voices = _languageService.getRecommendedVoices(detectedLang);
-                if (voices.isNotEmpty && mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('检测到${detectedLang == "zh" ? "中文" : "英文"}内容'),
-                    ),
-                  );
-                }
-              }
+              _processExtractedText(text);
             });
           }
         }
@@ -1327,29 +1290,172 @@ class _UploadPageState extends State<UploadPage> {
     }
   }
 
-  Future<void> _submitUrl([String? url]) async {
+  void _showUrlInputDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        final dialogKey = GlobalKey<UrlInputDialogState>();
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          child: UrlInputDialog(
+            key: dialogKey,
+            onSubmit: (url) async {
+              await _submitUrl(
+                url,
+                onProgress: (progress) {
+                  dialogKey.currentState?.updateProgress(progress);
+                },
+              );
+              if (mounted) {
+                Navigator.pop(context);
+              }
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _submitUrl(String? url, {Function(double)? onProgress}) async {
     final target = (url ?? _urlController.text).trim();
     if (target.isEmpty) return;
 
-    setState(() {
-      _isUploading = true;
-    });
-
     try {
+      onProgress?.call(0.3);
       final result = await _apiService.submitUrl(url: target);
+      onProgress?.call(0.7);
       setState(() {
-        _extractedText = result['text'];
-      });
+      _processExtractedText(result['text']);
+    });
+      onProgress?.call(1.0);
+      
+      // 等待一下让用户看到100%
+      await Future.delayed(const Duration(milliseconds: 500));
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
-    } finally {
-      if (mounted) setState(() { _isUploading = false; });
+    }
+  }
+
+  /// 处理单个生成任务（API调用 -> 轮询 -> 下载）
+  /// 返回是否成功
+  Future<bool> _processGeneration({
+    required String text,
+    int? fileId,
+    required String provider,
+    String? voiceId,
+    String? voiceType,
+    String? model,
+    int? partIndex,
+    int? totalParts,
+  }) async {
+    try {
+      final genResp = await _apiService.generateAudio(
+        text: text,
+        provider: provider,
+        voiceType: voiceType,
+        voiceId: voiceId,
+        model: model,
+        fileId: fileId,
+      );
+
+      if (genResp['taskId'] == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Generate failed: ${genResp['error'] ?? 'No taskId returned'}')));
+        }
+        return false;
+      }
+
+      final String taskId = genResp['taskId'].toString();
+
+      // 检查同步响应
+      if (genResp['status'] == 'completed' && genResp['audio_url'] != null) {
+        final audioUrl = genResp['audio_url'].toString();
+        if (audioUrl.isNotEmpty) {
+          await _downloadAndPlayAudio(audioUrl, partIndex: partIndex, totalParts: totalParts);
+          return true;
+        }
+      }
+
+      // 轮询
+      int attempts = 0;
+      const maxAttempts = 180;
+      const interval = Duration(seconds: 2);
+      bool taskCompleted = false;
+      bool success = false;
+
+      while (attempts < maxAttempts && !taskCompleted) {
+        await Future.delayed(interval);
+        attempts += 1;
+        
+        try {
+          final statusResp = await _apiService.getTaskStatus(taskId);
+          final data = statusResp['data'] ?? statusResp;
+          final st = (data != null && data['status'] != null) ? data['status'].toString() : '';
+          final progress = data != null && data['progress'] != null ? data['progress'] : null;
+          final message = data != null && data['message'] != null ? data['message'] : null;
+
+          if (mounted && progress != null && totalParts == null) {
+             // 只有在非分段模式下才更新全局进度，分段模式下进度由外部控制
+            setState(() {
+              _generateProgress = (progress as num).toDouble() / 100.0;
+            });
+          }
+
+          if (st == 'completed' || st == 'done') {
+            final audioUrl = data['result'] != null && data['result']['audio_url'] != null
+                ? data['result']['audio_url'].toString()
+                : (data['audio_url'] != null ? data['audio_url'].toString() : null);
+            
+            if (audioUrl != null && audioUrl.isNotEmpty) {
+              await _downloadAndPlayAudio(audioUrl, partIndex: partIndex, totalParts: totalParts);
+              taskCompleted = true;
+              success = true;
+            } else {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Task completed but audio URL missing')),
+                );
+              }
+              taskCompleted = true;
+            }
+            break;
+          } else if (st == 'failed') {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('TTS failed: ${message ?? 'Unknown error'}')),
+              );
+            }
+            taskCompleted = true;
+            break;
+          }
+        } catch (e) {
+          print('Polling task error: $e');
+          if (!mounted) break;
+        }
+      }
+      
+      if (!taskCompleted && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Task timeout, please try again')),
+        );
+      }
+      
+      return success;
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+      return false;
     }
   }
 
   Future<void> _generateAudio() async {
-    
     if (_selectedVoice == null) return;
+    
     setState(() {
       _isUploading = true;
       _generateProgress = 0.0;
@@ -1374,7 +1480,7 @@ class _UploadPageState extends State<UploadPage> {
             return;
           }
           if ((_extractedText == null || _extractedText!.isEmpty)) {
-            _extractedText = txt;
+            _processExtractedText(txt);
           }
         }
       } catch (e) {
@@ -1398,157 +1504,87 @@ class _UploadPageState extends State<UploadPage> {
       });
       return;
     }
-    try {
-      // 根据指南.md 8.13规范，使用新字段结构
-      final voice = _selectedVoice!;
-      final provider = voice.provider ?? 'azure';
-      final voiceId = voice.voiceId; // 使用 voiceId 字段
-      final model = voice.model; // 使用 model 字段
-      String? voiceTypeParam;
-      String? voiceIdParam;
-      String? modelParam;
 
-      if (provider == 'minimax') {
-        // Minimax 使用 voiceId 和 model
-        voiceIdParam = voiceId;
-        modelParam = model;
-      } else {
-        // Azure/Google 使用 voiceType（即 voiceId）
-        voiceTypeParam = voiceId;
-      }
-      
-      final genResp = await _apiService.generateAudio(
-        text: _extractedText ?? '',
-        provider: provider,
-        voiceType: voiceTypeParam,
-        voiceId: voiceIdParam,
-        model: modelParam,
-        fileId: fileIdToSend,
-      );
+    // 准备参数
+    final voice = _selectedVoice!;
+    final provider = voice.provider ?? 'azure';
+    final voiceId = voice.voiceId;
+    final model = voice.model;
+    String? voiceTypeParam;
+    String? voiceIdParam;
+    String? modelParam;
 
-      // 统一使用轮询方式：检查是否有 taskId
-      if (genResp['taskId'] == null) {
-        // 如果没有 taskId，说明请求失败
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Generate failed: ${genResp['error'] ?? 'No taskId returned'}')));
-        }
-        return;
-      }
+    if (provider == 'minimax') {
+      voiceIdParam = voiceId;
+      modelParam = model;
+    } else {
+      voiceTypeParam = voiceId;
+    }
 
-      final String taskId = genResp['taskId'].toString();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Task submitted: $taskId'), duration: const Duration(seconds: 2)),
-        );
-      }
+    // 大文本确认逻辑
+    if (_isLargeText) {
+      bool confirm = await showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('超大文本确认'),
+          content: Text('当前文本长度为 ${_extractedText?.length ?? 0} 字符，生成可能需要较长时间。\n\n是否继续？'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('取消'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('继续'),
+            ),
+          ],
+        ),
+      ) ?? false;
 
-      // 开始轮询任务状态
-      int attempts = 0;
-      const maxAttempts = 180; // 最多轮询 6 分钟
-      const interval = Duration(seconds: 2);
-      bool taskCompleted = false;
-
-      while (attempts < maxAttempts && !taskCompleted) {
-        await Future.delayed(interval);
-        attempts += 1;
-        
-        try {
-          final statusResp = await _apiService.getTaskStatus(taskId);
-          final data = statusResp['data'] ?? statusResp;
-          final st = (data != null && data['status'] != null) ? data['status'].toString() : '';
-          final progress = data != null && data['progress'] != null ? data['progress'] : null;
-          final message = data != null && data['message'] != null ? data['message'] : null;
-
-          // 更新进度
-          if (mounted && progress != null) {
-            setState(() {
-              _generateProgress = (progress as num).toDouble() / 100.0;
-            });
-          }
-
-          // 检查任务状态
-          if (st == 'completed' || st == 'done') {
-            // 任务完成，提取音频URL
-            final audioUrl = data['result'] != null && data['result']['audio_url'] != null
-                ? data['result']['audio_url'].toString()
-                : (data['audio_url'] != null ? data['audio_url'].toString() : null);
-            
-            if (audioUrl != null && audioUrl.isNotEmpty) {
-              // 下载音频、保存历史、跳转页面
-              await _downloadAndPlayAudio(audioUrl);
-              taskCompleted = true;
-            } else {
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Task completed but audio URL missing')),
-                );
-              }
-              taskCompleted = true;
-            }
-            break;
-          } else if (st == 'failed') {
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('TTS failed: ${message ?? 'Unknown error'}')),
-              );
-            }
-            taskCompleted = true;
-            break;
-          }
-        } catch (e) {
-          // 忽略单次轮询的错误，继续重试
-          print('Polling task error: $e');
-          // 如果页面已销毁，停止轮询
-          if (!mounted) {
-            break;
-          }
-        }
-      }
-
-      // 如果轮询超时
-      if (!taskCompleted && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Task timeout, please try again')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
-      }
-    } finally {
-      if (mounted) {
+      if (!confirm) {
         setState(() {
           _isUploading = false;
-          _generateProgress = 0.0;
         });
+        return;
       }
+    }
+
+    // 单次生成逻辑
+    await _processGeneration(
+      text: _extractedText ?? '',
+      fileId: fileIdToSend,
+      provider: provider,
+      voiceId: voiceIdParam,
+      voiceType: voiceTypeParam,
+      model: modelParam,
+    );
+    
+    if (mounted) {
+      setState(() {
+        _isUploading = false;
+        _generateProgress = 0.0;
+      });
     }
   }
 
   /// 下载音频和 titles 文件，然后播放
   /// [audioUrl] 服务器音频URL
-  Future<void> _downloadAndPlayAudio(String audioUrl) async {
+  Future<void> _downloadAndPlayAudio(String audioUrl, {int? partIndex, int? totalParts}) async {
     try {
       if (!mounted) return;
       
-      setState(() {
-        _generateProgress = 0.8; // 开始下载，进度设为80%
-      });
-
-      // 下载 mp3 文件
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Downloading audio...'), duration: Duration(seconds: 1)),
-        );
+      // 如果不是分段生成，更新进度
+      if (totalParts == null) {
+        setState(() {
+          _generateProgress = 0.8; // 开始下载，进度设为80%
+        });
       }
 
+      // 下载 mp3 文件
       final localAudioPath = await _downloadService.downloadAudio(
         audioUrl,
         onProgress: (progress) {
-          if (mounted) {
+          if (mounted && totalParts == null) {
             setState(() {
               // 下载进度：80% - 95%
               _generateProgress = 0.8 + (progress * 0.15);
@@ -1558,7 +1594,7 @@ class _UploadPageState extends State<UploadPage> {
       );
 
       // 下载 titles 文件（如果存在）
-      if (mounted) {
+      if (mounted && totalParts == null) {
         setState(() {
           _generateProgress = 0.95; // titles 下载开始
         });
@@ -1566,22 +1602,45 @@ class _UploadPageState extends State<UploadPage> {
 
       await _downloadService.downloadTitles(audioUrl);
 
-      if (mounted) {
+      if (mounted && totalParts == null) {
         setState(() {
           _generateProgress = 1.0; // 下载完成
         });
       }
       // 更新使用统计（记录使用的字符数）
-      if (_extractedText != null && _extractedText!.isNotEmpty) {
+      if (_extractedText != null && _extractedText!.isNotEmpty && totalParts == null) {
         await _usageStatsService.addUsedCharacters(_extractedText!.length);
+      }
+
+      // 获取音频时长
+      int durationSeconds = 0;
+      try {
+        final tempPlayer = AudioPlayer();
+        await tempPlayer.setSourceDeviceFile(localAudioPath);
+        final duration = await tempPlayer.getDuration();
+        durationSeconds = duration?.inSeconds ?? 0;
+        await tempPlayer.dispose();
+      } catch (e) {
+        print('Error getting duration: $e');
+      }
+
+      // 构造文件名
+      String fileName = _selectedFile?.path.split('/').last ?? 'generated_audio.mp3';
+      if (totalParts != null && partIndex != null) {
+        // 如果是分段，文件名加上 Part X
+        final nameWithoutExt = fileName.replaceAll(RegExp(r'\.[^.]+$'), '');
+        final ext = fileName.contains('.') ? fileName.split('.').last : 'mp3';
+        fileName = '${nameWithoutExt}_Part${partIndex}_of_$totalParts.$ext';
       }
 
       // 保存到本地历史记录（使用本地文件路径）
       final history = await _localHistoryService.saveHistory(
         audioUrl: localAudioPath, // 使用本地路径
         voiceType: _selectedVoice!.voiceId ?? _selectedVoice!.name,
-        resultText: _extractedText,
-        fileName: _selectedFile?.path.split('/').last,
+        voiceName: _selectedVoice!.name,
+        duration: durationSeconds,
+        resultText: totalParts != null ? 'Part $partIndex of $totalParts' : _extractedText,
+        fileName: fileName,
       );
       
       // 标记需要刷新首页历史
@@ -1589,24 +1648,35 @@ class _UploadPageState extends State<UploadPage> {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setBool('history_needs_refresh', true);
       } catch (_) {}
+
+      // 如果是分段生成，不自动播放和跳转，只显示提示
+      if (totalParts != null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Part $partIndex / $totalParts downloaded')),
+          );
+        }
+        return;
+      }
+
       // 播放本地文件
       await _audioService.play(localAudioPath);
 
       if (mounted) {
         await _openPlayerForUrl(history);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Audio ready and playing')),
-        );
+        // Removed 'Audio ready and playing' toast
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Download error: $e')),
         );
-        setState(() {
-          _isUploading = false;
-          _generateProgress = 0.0;
-        });
+        if (totalParts == null) {
+          setState(() {
+            _isUploading = false;
+            _generateProgress = 0.0;
+          });
+        }
       }
     }
   }
