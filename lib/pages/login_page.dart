@@ -441,7 +441,7 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
       
       // ========== 加载动画配置 ==========
       autoHideLoginLoading: true, // 自动隐藏加载动画
-      loadingImgPath: 'assets/background.jpg', // 加载动画图标
+      // loadingImgPath: 'assets/background.jpg', // 加载动画图标
       
       // ========== 协议页面WebView配置 ==========
       webViewStatusBarColor: '#FFFFFF',
