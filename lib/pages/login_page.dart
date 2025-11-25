@@ -256,12 +256,8 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
           if (serverUserId != null) 'user_id': serverUserId,
         };
 
-        // 手动关闭登录页面并返回结果给调用方
-        Future.delayed(const Duration(milliseconds: 300), () {
-          if (mounted) {
-            Navigator.of(context).pop(result);
-          }
-        });
+        // SDK will handle page close automatically (autoQuitPage & closeAuthPageReturnBack)
+
         break;
 
       default:
@@ -431,8 +427,6 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
       
       // ========== 行为配置 ==========
       autoQuitPage: true, // 登录成功/用户取消后自动关闭页面
-      closeAuthPageReturnBack: false, // 手动关闭页面并返回
-      tapAuthPageMaskClosePage: true, // 点击遮罩关闭页面
       
       // ========== Toast 配置 ==========
       isHideToast: false, // 显示 Toast 提示
