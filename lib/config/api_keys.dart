@@ -20,7 +20,7 @@ class ApiKeys {
   static const List<String> supportedDocTypes = ['.pdf', '.docx', '.txt', '.epub'];
   
   // 联系方式
-  static const String contactEmail = '1245105585@qq.com';
+  static const String contactEmail = 'support@tingyue.top';
 
   // Ali Auth (一键登录) - 填入你的 Android/ iOS SK
   static const String aliAuthAndroidSk = 'lEhoFoaBFzq8pcm+y73JYe6VKPV1ulR02CsHgKcRfVKOxaAsoSEjcKp6QUeHUlMD6t2pRDpnXeR81vAT9ivIioOlj7TvbfSojze5P2YLd9FmlToVTkA+Bxl/U3EIXDJCN2If98gBBhHOb/qUxGcNszAGqtM6AV5axcul+jDlO+8wUbou5RCKIOqfwPrjQIIjrqoQChMeCBQdV7Tu526alV6SJFH+wk7NP7DjnxUjca6xJU9IgWC1GxEzboprldvWjAwHrAC/bXXfzSm3Gmq7TjrtE3/WkC+N6JF2xSmCahLu/IUW60ELEQ==';
