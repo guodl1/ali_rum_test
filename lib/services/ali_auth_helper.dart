@@ -70,20 +70,19 @@ class AliAuthHelper {
         isDebug: kDebugMode,
         autoQuitPage: true,
         pageType: PageType.fullPort,
-        // UI customizations requested:
-        // - hide the "切换到其他方式" switch
-        // - hide slogan (top small text)
-        // - make the displayed phone number transparent to effectively remove the top no-password area
-        // - set login button text to black and position privacy text below the login button
+        // UI customizations requested per plugin docs:
+        // 1) 删除顶部栏（隐藏导航栏）
+        // 2) 将隐私条款放在一键登录按钮下方（privacyOffsetY）
+        navHidden: true,
         switchAccHidden: true,
         sloganHidden: true,
         numberColor: '#00FFFFFF',
         // login button styles
         logBtnTextColor: '#000000',
         // note: custom background images can be provided via `logBtnBackgroundPath` if you add assets.
-        // move privacy text under the login button (adjust value as needed)
+        // place the privacy text below the login button (value used in other places: 400)
         logBtnOffsetY: -20,
-        privacyOffsetY: 12,
+        privacyOffsetY: 400,
         privacyMargin: 16,
         // keep checkbox visible by default; if you want it hidden, set `checkboxHidden: true`
         // keep existing checkbox images if present
