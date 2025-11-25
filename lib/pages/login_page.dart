@@ -256,7 +256,14 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
           if (serverUserId != null) 'user_id': serverUserId,
         };
 
-        // SDK will handle page close automatically (autoQuitPage & closeAuthPageReturnBack)
+        // Ensure auth page is closed: explicitly quit the SDK auth page
+        try {
+          await AliAuth.quitPage();
+        } catch (e) {
+          if (kDebugMode) {
+            print('AliAuth.quitPage failed: $e');
+          }
+        }
 
         break;
 
