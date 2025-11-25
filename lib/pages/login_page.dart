@@ -350,13 +350,7 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
       // ========== 基本配置 ==========
       isDebug: true,
       isDelay: false,
-      pageType: PageType.dialogPort, // 半屏弹窗模式
-      
-      // ========== 弹窗配置 ==========
-      dialogWidth: 320,
-      dialogHeight: 500,
-      dialogOffsetY: 0, // 距离底部的偏移
-      dialogBottom: true, // 从底部弹出
+      pageType: PageType.fullPort, // 全屏模式
       
       // ========== 状态栏配置 ==========
       statusBarColor: '#FFFFFF', // 白色状态栏
@@ -370,7 +364,7 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
       navColor: '#FFFFFF', // 白色导航栏
       navHidden: false, // 显示导航栏
       navReturnImgPath: 'white.jpg', // 返回按钮图标
-      navReturnHidden: false, // 显示返回按钮
+      navReturnHidden: true, // 显示返回按钮
       navReturnImgWidth: 24,
       navReturnImgHeight: 24,
       
@@ -379,19 +373,19 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
       logoHidden: false, // 显示 Logo
       logoWidth: 70,
       logoHeight: 70,
-      logoOffsetY: 60, // 距离顶部 60
+      logoOffsetY: 100, // 距离顶部 100
       
       // ========== 手机号码配置 ==========
       numberColor: '#1a1a1a', // 深黑色号码
       numberSize: 22,
-      numFieldOffsetY: 160, // Logo 下方
+      numFieldOffsetY: 230, // Logo 下方
       
       // ========== Slogan 配置 ==========
       sloganText: '欢迎使用一键登录',
       sloganTextColor: '#666666',
       sloganTextSize: 12,
       sloganHidden: false, // 显示 Slogan
-      sloganOffsetY: 135, // Logo 正下方
+      sloganOffsetY: 180, // Logo 正下方
       
       // ========== 登录按钮配置 ==========
       logBtnText: '本机号码一键登录',
@@ -399,7 +393,7 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
       logBtnTextSize: 16,
       logBtnWidth: 280,
       logBtnHeight: 48,
-      logBtnOffsetY: 230, // 号码下方
+      logBtnOffsetY: 320, // 号码下方
       logBtnMarginLeftAndRight: 20,
       logBtnBackgroundPath: 'white.jpg', // 白色背景
       
@@ -407,7 +401,7 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
       switchAccHidden: true, // 隐藏切换账号按钮
       
       // ========== 隐私协议配置 ==========
-      privacyState: false, // 默认未勾选
+      privacyState: true, // 默认勾选
       checkboxHidden: false, // 显示复选框
       checkBoxWidth: 18,
       checkBoxHeight: 18,
@@ -415,7 +409,7 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
       checkedImgPath: 'iconfontcheckboxchecked.svg', // 选中图标
       
       // 隐私协议文本配置 - 放在登录按钮下方
-      privacyOffsetY: 310, // 登录按钮下方 (230 + 48 + 32)
+      privacyOffsetY: 400, // 登录按钮下方
       privacyTextSize: 10,
       privacyMargin: 20, // 左右边距
       
