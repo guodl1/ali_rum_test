@@ -119,7 +119,9 @@ flutter:
   assets:
     - referPhoto/male-2.svg
     - referPhoto/female-2.svg
-    - assets/
+    - assets/white.jpg
+    - assets/iconfontcheckboxunchecked.svg
+    - assets/iconfontcheckboxchecked.svg
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware
 
