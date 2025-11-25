@@ -8,21 +8,7 @@ import 'widgets/main_navigator.dart';
 import 'services/user_service.dart';
 import 'services/background_audio_handler.dart';
 
-void main() async {
-  // 确保 Flutter 绑定初始化
-  WidgetsFlutterBinding.ensureInitialized();
-  
-  // 初始化后台音频服务
-  await AudioService.init(
-    builder: () => BackgroundAudioHandler(),
-    config: const AudioServiceConfig(
-      androidNotificationChannelId: 'com.tingyue.audio',
-      androidNotificationChannelName: '听阅音频播放',
-      androidNotificationOngoing: true,
-      androidStopForegroundOnPause: true,  // Must be true when androidNotificationOngoing is true
-    ),
-  );
-  
+void main() {
   // 在 iOS 和 Android 平台启动 Alibaba Cloud RUM，鸿蒙平台不启动
   if (Platform.isIOS || Platform.isAndroid) {
     AlibabaCloudRUM().start(const MyApp());
@@ -50,7 +36,21 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _initialize() async {
-    // Localization initialization removed
+    // 初始化后台音频服务
+    try {
+      await AudioService.init(
+        builder: () => BackgroundAudioHandler(),
+        config: const AudioServiceConfig(
+          androidNotificationChannelId: 'com.tingyue.audio',
+          androidNotificationChannelName: '听阅音频播放',
+          androidNotificationOngoing: true,
+          androidStopForegroundOnPause: true,
+        ),
+      );
+    } catch (e) {
+      print('AudioService initialization error: $e');
+    }
+    
     // 设置系统状态栏样式
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
