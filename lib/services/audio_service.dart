@@ -190,7 +190,7 @@ class AudioService {
           final mediaItem = MediaItem(
             id: url,
             title: '听阅音频',
-            artist: '听阅 TTS',
+            artist: '听阅',
             duration: _totalDuration,
           );
           await _backgroundHandler!.loadAudioFromFile(localPath, mediaItem);
