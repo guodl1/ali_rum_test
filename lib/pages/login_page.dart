@@ -358,13 +358,13 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
       navTextSize: 18,
       navColor: '#FFFFFF', // 白色导航栏
       navHidden: false, // 显示导航栏
-      navReturnImgPath: 'assets/white.jpg', // 返回按钮图标
+      navReturnImgPath: 'white.jpg', // 返回按钮图标
       navReturnHidden: false  , // 显示返回按钮
       navReturnImgWidth: 24,
       navReturnImgHeight: 24,
       
       // ========== Logo 配置 ==========
-      logoImgPath: 'assets/white.jpg', 
+      logoImgPath: 'white.jpg', 
       logoHidden: false, // 显示 Logo
       logoWidth: 70,
       logoHeight: 70,
@@ -390,7 +390,7 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
       logBtnHeight: 48,
       logBtnOffsetY: 320, // 号码下方
       logBtnMarginLeftAndRight: 20,
-      logBtnBackgroundPath: 'assets/white.jpg', // 白色背景
+      logBtnBackgroundPath: 'white.jpg', // 白色背景
       
       // ========== 切换账号配置 ==========
       switchAccHidden: true, // 隐藏切换账号按钮
