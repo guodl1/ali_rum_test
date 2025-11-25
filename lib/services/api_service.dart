@@ -166,6 +166,28 @@ class ApiService {
     }
   }
 
+  /// 获取用户信息
+  Future<Map<String, dynamic>> getUserProfile(String userId) async {
+    try {
+      final response = await _client
+          .get(Uri.parse('$baseUrl/api/auth/profile?user_id=$userId'))
+          .timeout(Duration(milliseconds: AppConfig.connectionTimeout));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['success'] == true) {
+          return data['data'];
+        } else {
+          throw Exception(data['error'] ?? 'Failed to get profile');
+        }
+      } else {
+        throw Exception('Get profile failed: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Get profile error: $e');
+    }
+  }
+
   /// 获取历史记录
   Future<List<HistoryModel>> getHistory({
     String? userId,

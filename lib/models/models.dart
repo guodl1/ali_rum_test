@@ -5,12 +5,16 @@ class UserModel {
   final String username;
   final DateTime createdAt;
   final String language;
+  final String? membershipType;
+  final DateTime? membershipExpiry;
 
   UserModel({
     required this.id,
     required this.username,
     required this.createdAt,
     required this.language,
+    this.membershipType,
+    this.membershipExpiry,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -19,6 +23,10 @@ class UserModel {
       username: json['username'],
       createdAt: DateTime.parse(json['created_at']),
       language: json['language'],
+      membershipType: json['membership_type'],
+      membershipExpiry: json['membership_expiry'] != null 
+          ? DateTime.parse(json['membership_expiry']) 
+          : null,
     );
   }
 
@@ -28,6 +36,8 @@ class UserModel {
       'username': username,
       'created_at': createdAt.toIso8601String(),
       'language': language,
+      'membership_type': membershipType,
+      'membership_expiry': membershipExpiry?.toIso8601String(),
     };
   }
 }

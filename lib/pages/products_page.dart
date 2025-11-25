@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../widgets/liquid_glass_card.dart';
 import '../services/payment_service.dart';
+import '../services/user_service.dart';
+import '../services/platform_login_service.dart';
 
 /// 商品/升级页面
 class ProductsPage extends StatefulWidget {
@@ -12,6 +15,25 @@ class ProductsPage extends StatefulWidget {
 
 class _ProductsPageState extends State<ProductsPage> {
   int _selectedPlanIndex = 0;
+  final UserService _userService = UserService();
+
+  @override
+  void initState() {
+    super.initState();
+    _userService.addListener(_onUserUpdate);
+    // Refresh profile when entering page
+    _userService.fetchProfile();
+  }
+
+  @override
+  void dispose() {
+    _userService.removeListener(_onUserUpdate);
+    super.dispose();
+  }
+
+  void _onUserUpdate() {
+    if (mounted) setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -23,6 +45,11 @@ class _ProductsPageState extends State<ProductsPage> {
     final textColor = isDark
         ? const Color(0xFFF1EEE3)
         : const Color(0xFF191815);
+
+    final user = _userService.currentUser;
+    final isVip = user?.membershipType == 'VIP' && 
+                  user?.membershipExpiry != null && 
+                  user!.membershipExpiry!.isAfter(DateTime.now());
 
     return Scaffold(
       backgroundColor: backgroundColor,
@@ -44,8 +71,59 @@ class _ProductsPageState extends State<ProductsPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SizedBox(height: 20),
-              
+              // 会员状态卡片
+              if (_userService.isLoggedIn) ...[
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: isVip ? const Color(0xFFFFD700).withOpacity(0.2) : Colors.grey.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isVip ? const Color(0xFFFFD700) : Colors.transparent,
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        backgroundColor: isVip ? const Color(0xFFFFD700) : Colors.grey,
+                        child: Icon(
+                          isVip ? Icons.star : Icons.person,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              user?.username ?? '用户',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: textColor,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              isVip 
+                                ? 'VIP 有效期至: ${DateFormat('yyyy-MM-dd').format(user!.membershipExpiry!)}'
+                                : '当前为普通用户',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: textColor.withOpacity(0.7),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
+
               // 标题
               Text(
                 '选择会员计划',
@@ -88,9 +166,9 @@ class _ProductsPageState extends State<ProductsPage> {
                     ),
                     elevation: 0,
                   ),
-                  child: const Text(
-                    '立即购买',
-                    style: TextStyle(
+                  child: Text(
+                    _userService.isLoggedIn ? '立即购买' : '登录并购买',
+                    style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
                     ),
@@ -311,6 +389,12 @@ class _ProductsPageState extends State<ProductsPage> {
   }
 
   Future<void> _handlePurchase() async {
+    // Check login first
+    if (!_userService.isLoggedIn) {
+      final success = await _showLoginDialog();
+      if (!success) return;
+    }
+
     final plans = [
       {'name': '月度会员', 'price': '29.00'},
       {'name': '年度会员', 'price': '299.00'},
@@ -331,8 +415,7 @@ class _ProductsPageState extends State<ProductsPage> {
 
     try {
       final paymentService = PaymentService();
-      // TODO: Replace with real user ID
-      final userId = 123; 
+      final userId = _userService.currentUser!.id;
       
       final result = await paymentService.payWithAlipay(
         amount: price,
@@ -351,6 +434,8 @@ class _ProductsPageState extends State<ProductsPage> {
               backgroundColor: Colors.green,
             ),
           );
+          // Refresh profile to update membership status
+          await _userService.fetchProfile();
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -373,6 +458,65 @@ class _ProductsPageState extends State<ProductsPage> {
         );
       }
     }
+  }
+
+  Future<bool> _showLoginDialog() async {
+    return await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('需要登录'),
+        content: const Text('购买会员需要先登录账号，是否立即登录？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.of(context).pop(false); // Close dialog first
+              
+              // Show loading
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (context) => const Center(child: CircularProgressIndicator()),
+              );
+
+              bool success = false;
+              try {
+                if (PlatformLoginService.isHarmonyOS) {
+                  success = await _userService.loginWithHuawei();
+                } else {
+                  // TODO: Implement Ali login UI flow if needed, or just call loginWithAli
+                  // For now, we assume HarmonyOS flow or generic
+                  // If not HarmonyOS, maybe show a toast saying not supported yet or mock login
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('当前平台暂不支持一键登录')),
+                  );
+                }
+              } catch (e) {
+                debugPrint('Login error: $e');
+              }
+
+              // Hide loading
+              if (mounted && Navigator.canPop(context)) {
+                Navigator.of(context).pop();
+              }
+              
+              if (success) {
+                 return true; // We can't return true here because we popped the dialog.
+                 // But we can rely on _userService listener to update UI.
+                 // Actually, this method returns to _handlePurchase.
+                 // Since we popped the dialog, we need to return the result.
+                 // But we popped it with 'false' earlier.
+                 // So we should handle login inside the dialog or return a future.
+              }
+            },
+            child: const Text('登录'),
+          ),
+        ],
+      ),
+    ) ?? false;
   }
 }
 

@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 
 import 'package:alibabacloud_rum_flutter_plugin/alibabacloud_rum_flutter_plugin.dart';
 import 'widgets/main_navigator.dart';
+import 'services/user_service.dart';
 
 void main() {
   // 在 iOS 和 Android 平台启动 Alibaba Cloud RUM，鸿蒙平台不启动
@@ -40,6 +41,9 @@ class _MyAppState extends State<MyApp> {
         statusBarColor: Colors.transparent,
       ),
     );
+    
+    // Initialize User Service
+    await UserService().init();
     
     setState(() {
       _isInitialized = true;
