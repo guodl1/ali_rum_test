@@ -103,31 +103,45 @@ class _WaveformVisualizerState extends State<WaveformVisualizer>
   Widget build(BuildContext context) {
     return SizedBox(
       height: 120,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: List.generate(widget.barCount, (index) {
-          double normalizedHeight = _currentHeights[index];
-          
-          // Apply a window function (Hanning-like) to taper ends
-          double window = 0.5 * (1 - cos(2 * pi * index / (widget.barCount - 1)));
-          
-          double height = 4 + (100 * normalizedHeight * window);
-          
-          if (!widget.isPlaying) {
-             height = 4 + (10 * window); 
-          }
+      child: ClipRect(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final availWidth = constraints.maxWidth;
+            // Compute per-bar allotted width (including spacing)
+            final perBar = widget.barCount > 0 ? (availWidth / widget.barCount) : 0.0;
 
-          return Container(
-            width: 3,
-            height: height,
-            margin: const EdgeInsets.symmetric(horizontal: 1.5),
-            decoration: BoxDecoration(
-              color: widget.color,
-              borderRadius: BorderRadius.circular(1.5),
-            ),
-          );
-        }),
+            // Choose a reasonable visual width for the bar and margin based on available space
+            final barWidth = perBar > 6 ? 3.0 : (perBar * 0.6).clamp(2.0, 6.0);
+            final horizMargin = (perBar - barWidth) / 2.0 >= 0 ? (perBar - barWidth) / 2.0 : 0.5;
+
+            return Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: List.generate(widget.barCount, (index) {
+                double normalizedHeight = _currentHeights[index];
+
+                // Apply a window function (Hanning-like) to taper ends
+                double window = 0.5 * (1 - cos(2 * pi * index / (widget.barCount - 1)));
+
+                double height = 4 + (100 * normalizedHeight * window);
+
+                if (!widget.isPlaying) {
+                  height = 4 + (10 * window);
+                }
+
+                return Container(
+                  width: barWidth,
+                  height: height,
+                  margin: EdgeInsets.symmetric(horizontal: horizMargin),
+                  decoration: BoxDecoration(
+                    color: widget.color,
+                    borderRadius: BorderRadius.circular(barWidth / 2),
+                  ),
+                );
+              }),
+            );
+          },
+        ),
       ),
     );
   }
