@@ -19,7 +19,7 @@ void main() async {
       androidNotificationChannelId: 'com.tingyue.audio',
       androidNotificationChannelName: '听阅音频播放',
       androidNotificationOngoing: true,
-      androidStopForegroundOnPause: false,
+      androidStopForegroundOnPause: true,  // Must be true when androidNotificationOngoing is true
     ),
   );
   

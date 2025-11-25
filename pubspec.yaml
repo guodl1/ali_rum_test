@@ -44,7 +44,7 @@ dependencies:
   audioplayers: ^5.2.1
   
   # Background audio support
-  audio_service: ^0.18.12
+  audio_service: ^0.18.18
   
   # File picker
   file_picker: ^10.3.6
