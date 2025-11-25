@@ -347,50 +347,131 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
     return AliAuthModel(
       ApiKeys.aliAuthAndroidSk,
       ApiKeys.aliAuthIosSk,
-      // 基本配置
+      // ========== 基本配置 ==========
       isDebug: true,
       isDelay: false,
-      // 全屏页面
-      pageType: PageType.fullPort,
-      // 导航栏 / 标题
-      navText: '登录',
-      navColor: '#00000000', // 透明
+      pageType: PageType.fullPort, // 全屏竖屏
+      fullScreen: false, // 不强制全屏，保留状态栏
+      
+      // ========== 状态栏配置 ==========
+      statusBarColor: '#00000000', // 透明状态栏
+      isStatusBarHidden: false, // 显示状态栏
+      lightColor: true, // 亮色文字（深色背景）
+      
+      // ========== 导航栏配置 ==========
+      navText: '一键登录',
       navTextColor: '#FFFFFF',
+      navTextSize: 18,
+      navColor: '#00000000', // 透明导航栏
+      navHidden: false, // 显示导航栏
+      navReturnImgPath: 'assets/background.jpg', // 返回按钮图标
+      navReturnHidden: false, // 显示返回按钮
+      navReturnImgWidth: 24,
+      navReturnImgHeight: 24,
       
-      // 必须设置图片路径，即使隐藏，否则可能报 flutter_assets/null 错误
-      navReturnImgPath: 'assets/background.jpg', 
-      navReturnHidden: true, 
+      // ========== Logo 配置 ==========
+      logoImgPath: 'assets/background.jpg', 
+      logoHidden: false, // 显示 Logo
+      logoWidth: 80,
+      logoHeight: 80,
+      logoOffsetY: 120, // 距离顶部 120
       
-      // Slogan 与 Logo
-      logoImgPath: 'assets/background.jpg',
-      logoHidden: true, 
-      sloganHidden: true, 
+      // ========== 手机号码配置 ==========
+      numberColor: '#333333', // 深灰色号码
+      numberSize: 24,
+      numFieldOffsetY: 240, // Logo 下方 120
       
-      // 登录按钮文案
-      logBtnText: '一键登录',
+      // ========== Slogan 配置 ==========
+      sloganText: '欢迎使用一键登录',
+      sloganTextColor: '#666666',
+      sloganTextSize: 12,
+      sloganHidden: false, // 显示 Slogan
+      sloganOffsetY: 200, // Logo 正下方
+      
+      // ========== 登录按钮配置 ==========
+      logBtnText: '本机号码一键登录',
       logBtnTextColor: '#FFFFFF',
-      logBtnWidth: 300,
+      logBtnTextSize: 17,
+      logBtnWidth: 320,
       logBtnHeight: 50,
-      logBtnOffsetY: 300, 
+      logBtnOffsetY: 360, // 号码下方
+      logBtnMarginLeftAndRight: 30,
+      logBtnBackgroundPath: 'assets/background.jpg', // 可以设置按钮背景图
       
-      // 切换账号
-      switchAccHidden: true, 
-
-      // 页面背景与模式
+      // ========== 切换账号配置 ==========
+      switchAccHidden: false, // 显示切换账号
+      switchAccText: '切换其他登录方式',
+      switchAccTextColor: '#999999',
+      switchAccTextSize: 14,
+      switchOffsetY: 440, // 登录按钮下方
+      
+      // ========== 隐私协议配置 ==========
+      privacyState: false, // 默认未勾选
+      checkboxHidden: false, // 显示复选框
+      checkBoxWidth: 20,
+      checkBoxHeight: 20,
+      uncheckedImgPath: 'assets/background.jpg', // 未选中图标
+      checkedImgPath: 'assets/background.jpg', // 选中图标
+      
+      // 隐私协议文本配置
+      privacyOffsetY: 80, // 距离底部
+      privacyOffsetY_B: 80, // 底部偏移
+      privacyTextSize: 11,
+      privacyMargin: 30, // 左右边距
+      
+      // 隐私协议文本内容
+      privacyBefore: '登录即同意',
+      privacyEnd: '并授权获取本机号码',
+      
+      // 运营商协议颜色
+      protocolOwnColor: '#3E7EFF', // 运营商协议蓝色
+      protocolCustomColor: '#3E7EFF', // 自定义协议颜色
+      
+      // 自定义协议
+      protocolOneName: '《用户协议》',
+      protocolOneURL: 'https://tingyue.top/user-agreement',
+      protocolTwoName: '《隐私政策》',
+      protocolTwoURL: 'https://tingyue.top/privacy-policy',
+      
+      // ========== 页面背景配置 ==========
       pageBackgroundPath: 'assets/background.jpg', 
       backgroundImageContentMode: ContentMode.scaleAspectFill,
+      backgroundColor: '#F5F5F5', // 背景色（当无图片时）
       
-      // 行为配置
-      autoQuitPage: true, 
-      isHiddenToast: false, 
+      // ========== 行为配置 ==========
+      autoQuitPage: true, // 登录成功/用户取消后自动关闭页面
+      closeAuthPageReturnBack: false, // 关闭页面时不返回上一页（由 pop 处理）
+      tapAuthPageMaskClosePage: false, // 点击遮罩不关闭页面
       
-      // 隐私协议
-      privacyState: false, 
-      privacyOffsetY: 10, 
-      // 必须设置 Checkbox 图片路径，否则报 flutter_assets/null 错误
-      uncheckedImgPath: 'assets/background.jpg',
-      checkedImgPath: 'assets/background.jpg',
-      checkboxHidden: false, // 隐私协议必须勾选，通常不能完全隐藏 Checkbox，但可以自定义图标
+      // ========== Toast 配置 ==========
+      isHideToast: false, // 显示 Toast 提示
+      toastText: '请先阅读并同意用户协议',
+      toastBackground: '#DD000000', // 半透明黑色
+      toastColor: '#FFFFFF',
+      toastPadding: 16,
+      toastMarginBottom: 200,
+      toastPositionMode: 'bottom',
+      toastDelay: 2,
+      logBtnToastHidden: false, // 显示登录按钮 Toast
+      
+      // ========== 加载动画配置 ==========
+      autoHideLoginLoading: true, // 自动隐藏加载动画
+      loadingImgPath: 'assets/background.jpg', // 加载动画图标
+      
+      // ========== 协议页面WebView配置 ==========
+      webViewStatusBarColor: '#FFFFFF',
+      webNavColor: '#FFFFFF',
+      webNavTextColor: '#333333',
+      webNavTextSize: 18,
+      webSupportedJavascript: true,
+      
+      // ========== 隐私弹窗配置（二次确认） ==========
+      privacyAlertIsNeedShow: false, // 不显示二次隐私弹窗
+      privacyAlertIsNeedAutoLogin: true, // 同意后自动登录
+      privacyAlertMaskIsNeedShow: true, // 显示遮罩
+      privacyAlertMaskAlpha: 0.5,
+      privacyAlertMaskColor: '#000000',
+      tapPrivacyAlertMaskCloseAlert: false, // 点击遮罩不关闭弹窗
     );
   }
 
