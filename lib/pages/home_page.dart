@@ -4,6 +4,9 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/foundation.dart';
+
+import '../services/ali_auth_helper.dart';
 
 import '../models/models.dart';
 import '../services/api_service.dart';
@@ -532,14 +535,15 @@ class _HomePageState extends State<HomePage> {
           // 左侧头像 - frame-34078 (48x48)，点击跳转到登录页
           GestureDetector(
             onTap: () async {
-              final result = await Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => const LoginPage(),
-                ),
-              );
-              // 如果登录成功，可以在这里更新UI
-              if (result == true) {
-                // TODO: 更新用户信息显示
+              // Directly trigger AliAuth / HarmonyOS login instead of navigating to an interim page
+              try {
+                final res = await AliAuthHelper.startLogin(context);
+                if (res == true) {
+                  // 登录成功，可在此刷新用户相关 UI 或跳转
+                  // TODO: 更新用户信息显示
+                }
+              } catch (e) {
+                if (kDebugMode) print('login trigger failed: $e');
               }
             },
             child: Container(
