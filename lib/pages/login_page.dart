@@ -391,13 +391,15 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
       
       // ========== 登录按钮配置 ==========
       logBtnText: '本机号码一键登录',
+      // 使用深色背景图并白色文字，避免白底白字不可见的情况
       logBtnTextColor: '#FFFFFF',
       logBtnTextSize: 16,
       logBtnWidth: 280,
       logBtnHeight: 48,
       logBtnOffsetY: 320, // 号码下方
       logBtnMarginLeftAndRight: 20,
-      logBtnBackgroundPath: 'white.jpg', // 白色背景
+      // 使用项目内默认的按钮资源（normal, unable, press）以保证可见性
+      logBtnBackgroundPath: 'assets/login_btn_normal.png,assets/login_btn_unable.png,assets/login_btn_press.png',
       
       // ========== 切换账号配置 ==========
       switchAccHidden: true, // 隐藏切换账号按钮
@@ -407,8 +409,9 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
       checkboxHidden: false, // 显示复选框
       checkBoxWidth: 18,
       checkBoxHeight: 18,
-      uncheckedImgPath: 'iconfontcheckboxunchecked.svg', // 未选中图标
-      checkedImgPath: 'iconfontcheckboxchecked.svg', // 选中图标
+      // 使用位图复选框资源，确保在白色背景上也可见
+      uncheckedImgPath: 'assets/btn_unchecked.png', // 未选中图标
+      checkedImgPath: 'assets/btn_checked.png', // 选中图标
       
 
       pageBackgroundPath: 'white.jpg', // 白色背景
