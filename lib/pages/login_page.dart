@@ -256,8 +256,7 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
           if (serverUserId != null) 'user_id': serverUserId,
         };
 
-        // 等待 SDK 自动退出页面后再返回结果
-        // 使用 Future.delayed 确保页面已退出
+        // 手动关闭登录页面并返回结果给调用方
         Future.delayed(const Duration(milliseconds: 300), () {
           if (mounted) {
             Navigator.of(context).pop(result);
@@ -364,7 +363,7 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
       navColor: '#FFFFFF', // 白色导航栏
       navHidden: false, // 显示导航栏
       navReturnImgPath: 'white.jpg', // 返回按钮图标
-      navReturnHidden: true, // 显示返回按钮
+      navReturnHidden: false  , // 显示返回按钮
       navReturnImgWidth: 24,
       navReturnImgHeight: 24,
       
@@ -432,7 +431,7 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
       
       // ========== 行为配置 ==========
       autoQuitPage: true, // 登录成功/用户取消后自动关闭页面
-      closeAuthPageReturnBack: true, // 关闭页面时返回上一页（由 SDK 自动处理）
+      closeAuthPageReturnBack: false, // 手动关闭页面并返回
       tapAuthPageMaskClosePage: true, // 点击遮罩关闭页面
       
       // ========== Toast 配置 ==========
