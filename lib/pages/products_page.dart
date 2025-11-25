@@ -473,8 +473,6 @@ class _ProductsPageState extends State<ProductsPage> {
           ),
           TextButton(
             onPressed: () async {
-              Navigator.of(context).pop(false); // Close dialog first
-              
               // Show loading
               showDialog(
                 context: context,
@@ -490,9 +488,11 @@ class _ProductsPageState extends State<ProductsPage> {
                   // TODO: Implement Ali login UI flow if needed, or just call loginWithAli
                   // For now, we assume HarmonyOS flow or generic
                   // If not HarmonyOS, maybe show a toast saying not supported yet or mock login
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('当前平台暂不支持一键登录')),
-                  );
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('当前平台暂不支持一键登录')),
+                    );
+                  }
                 }
               } catch (e) {
                 debugPrint('Login error: $e');
@@ -500,16 +500,19 @@ class _ProductsPageState extends State<ProductsPage> {
 
               // Hide loading
               if (mounted && Navigator.canPop(context)) {
-                Navigator.of(context).pop();
+                Navigator.of(context).pop(); // Pop loading dialog
               }
               
               if (success) {
-                 return true; // We can't return true here because we popped the dialog.
-                 // But we can rely on _userService listener to update UI.
-                 // Actually, this method returns to _handlePurchase.
-                 // Since we popped the dialog, we need to return the result.
-                 // But we popped it with 'false' earlier.
-                 // So we should handle login inside the dialog or return a future.
+                 if (mounted) {
+                   Navigator.of(context).pop(true); // Pop main dialog with true
+                 }
+              } else {
+                 if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('登录失败，请重试')),
+                    );
+                 }
               }
             },
             child: const Text('登录'),
