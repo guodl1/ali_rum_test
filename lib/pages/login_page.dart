@@ -403,6 +403,8 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
       uncheckedImgPath: 'iconfontcheckboxunchecked.svg', // 未选中图标
       checkedImgPath: 'iconfontcheckboxchecked.svg', // 选中图标
       
+
+      pageBackgroundPath: 'white.jpg', // 白色背景
       // 隐私协议文本配置 - 放在登录按钮下方
       privacyOffsetY: 400, // 登录按钮下方
       privacyTextSize: 10,
