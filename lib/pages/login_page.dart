@@ -432,7 +432,7 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
       
       // ========== 行为配置 ==========
       autoQuitPage: true, // 登录成功/用户取消后自动关闭页面
-      closeAuthPageReturnBack: false, // 关闭页面时不返回上一页（由 pop 处理）
+      closeAuthPageReturnBack: true, // 关闭页面时返回上一页（由 SDK 自动处理）
       tapAuthPageMaskClosePage: true, // 点击遮罩关闭页面
       
       // ========== Toast 配置 ==========
