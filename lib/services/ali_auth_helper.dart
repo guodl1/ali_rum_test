@@ -77,6 +77,7 @@ class AliAuthHelper {
         navTextColor: '#000000',
         navColor: '#00000000',
         navReturnHidden: false,
+        navReturnImgPath: 'assets/back.svg',
         switchAccHidden: true,
         sloganHidden: true,
         numberColor: '#00FFFFFF',

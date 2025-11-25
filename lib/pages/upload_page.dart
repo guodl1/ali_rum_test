@@ -171,7 +171,10 @@ class _UploadPageState extends State<UploadPage> {
     _inlineTextController.addListener(_onTextChanged);
     // 只使用传入的文本，不加载缓存
     if (widget.initialText != null && widget.initialText!.isNotEmpty) {
-      _processExtractedText(widget.initialText!);
+      // 延迟到首帧之后再处理，避免在 initState 中访问 InheritedWidget（如 ScaffoldMessenger）
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _processExtractedText(widget.initialText!);
+      });
     }
     // 尝试加载上次选中的语音（如果有），否则尝试设置一个默认语音
     _loadLastSelectedVoice();
