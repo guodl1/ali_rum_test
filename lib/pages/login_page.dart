@@ -350,19 +350,24 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
       // ========== 基本配置 ==========
       isDebug: true,
       isDelay: false,
-      pageType: PageType.fullPort, // 全屏竖屏
-      fullScreen: false, // 不强制全屏，保留状态栏
+      pageType: PageType.dialogPort, // 半屏弹窗模式
+      
+      // ========== 弹窗配置 ==========
+      dialogWidth: 320,
+      dialogHeight: 500,
+      dialogOffsetY: 0, // 距离底部的偏移
+      dialogBottom: true, // 从底部弹出
       
       // ========== 状态栏配置 ==========
-      statusBarColor: '#00000000', // 透明状态栏
+      statusBarColor: '#FFFFFF', // 白色状态栏
       isStatusBarHidden: false, // 显示状态栏
-      lightColor: true, // 亮色文字（深色背景）
+      lightColor: false, // 深色文字（浅色背景）
       
       // ========== 导航栏配置 ==========
       navText: '一键登录',
-      navTextColor: '#FFFFFF',
+      navTextColor: '#333333', // 深色文字
       navTextSize: 18,
-      navColor: '#00000000', // 透明导航栏
+      navColor: '#FFFFFF', // 白色导航栏
       navHidden: false, // 显示导航栏
       navReturnImgPath: 'assets/background.jpg', // 返回按钮图标
       navReturnHidden: false, // 显示返回按钮
@@ -372,52 +377,47 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
       // ========== Logo 配置 ==========
       logoImgPath: 'assets/background.jpg', 
       logoHidden: false, // 显示 Logo
-      logoWidth: 80,
-      logoHeight: 80,
-      logoOffsetY: 120, // 距离顶部 120
+      logoWidth: 70,
+      logoHeight: 70,
+      logoOffsetY: 60, // 距离顶部 60
       
       // ========== 手机号码配置 ==========
-      numberColor: '#333333', // 深灰色号码
-      numberSize: 24,
-      numFieldOffsetY: 240, // Logo 下方 120
+      numberColor: '#1a1a1a', // 深黑色号码
+      numberSize: 22,
+      numFieldOffsetY: 160, // Logo 下方
       
       // ========== Slogan 配置 ==========
       sloganText: '欢迎使用一键登录',
       sloganTextColor: '#666666',
       sloganTextSize: 12,
       sloganHidden: false, // 显示 Slogan
-      sloganOffsetY: 200, // Logo 正下方
+      sloganOffsetY: 135, // Logo 正下方
       
       // ========== 登录按钮配置 ==========
       logBtnText: '本机号码一键登录',
       logBtnTextColor: '#FFFFFF',
-      logBtnTextSize: 17,
-      logBtnWidth: 320,
-      logBtnHeight: 50,
-      logBtnOffsetY: 360, // 号码下方
-      logBtnMarginLeftAndRight: 30,
+      logBtnTextSize: 16,
+      logBtnWidth: 280,
+      logBtnHeight: 48,
+      logBtnOffsetY: 230, // 号码下方
+      logBtnMarginLeftAndRight: 20,
       logBtnBackgroundPath: 'assets/background.jpg', // 可以设置按钮背景图
       
       // ========== 切换账号配置 ==========
-      switchAccHidden: false, // 显示切换账号
-      switchAccText: '切换其他登录方式',
-      switchAccTextColor: '#999999',
-      switchAccTextSize: 14,
-      switchOffsetY: 440, // 登录按钮下方
+      switchAccHidden: true, // 隐藏切换账号按钮
       
       // ========== 隐私协议配置 ==========
       privacyState: false, // 默认未勾选
       checkboxHidden: false, // 显示复选框
-      checkBoxWidth: 20,
-      checkBoxHeight: 20,
+      checkBoxWidth: 18,
+      checkBoxHeight: 18,
       uncheckedImgPath: 'assets/background.jpg', // 未选中图标
       checkedImgPath: 'assets/background.jpg', // 选中图标
       
-      // 隐私协议文本配置
-      privacyOffsetY: 80, // 距离底部
-      privacyOffsetY_B: 80, // 底部偏移
-      privacyTextSize: 11,
-      privacyMargin: 30, // 左右边距
+      // 隐私协议文本配置 - 放在登录按钮下方
+      privacyOffsetY: 310, // 登录按钮下方 (230 + 48 + 32)
+      privacyTextSize: 10,
+      privacyMargin: 20, // 左右边距
       
       // 隐私协议文本内容
       privacyBefore: '登录即同意',
@@ -434,14 +434,12 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
       protocolTwoURL: 'https://tingyue.top/privacy-policy',
       
       // ========== 页面背景配置 ==========
-      pageBackgroundPath: 'assets/background.jpg', 
-      backgroundImageContentMode: ContentMode.scaleAspectFill,
-      backgroundColor: '#F5F5F5', // 背景色（当无图片时）
+      backgroundColor: '#FFFFFF', // 白色背景
       
       // ========== 行为配置 ==========
       autoQuitPage: true, // 登录成功/用户取消后自动关闭页面
       closeAuthPageReturnBack: false, // 关闭页面时不返回上一页（由 pop 处理）
-      tapAuthPageMaskClosePage: false, // 点击遮罩不关闭页面
+      tapAuthPageMaskClosePage: true, // 点击遮罩关闭页面
       
       // ========== Toast 配置 ==========
       isHideToast: false, // 显示 Toast 提示
@@ -449,7 +447,7 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
       toastBackground: '#DD000000', // 半透明黑色
       toastColor: '#FFFFFF',
       toastPadding: 16,
-      toastMarginBottom: 200,
+      toastMarginBottom: 100,
       toastPositionMode: 'bottom',
       toastDelay: 2,
       logBtnToastHidden: false, // 显示登录按钮 Toast
