@@ -1,12 +1,28 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:audio_service/audio_service.dart';
 
 import 'package:alibabacloud_rum_flutter_plugin/alibabacloud_rum_flutter_plugin.dart';
 import 'widgets/main_navigator.dart';
 import 'services/user_service.dart';
+import 'services/background_audio_handler.dart';
 
-void main() {
+void main() async {
+  // 确保 Flutter 绑定初始化
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // 初始化后台音频服务
+  await AudioService.init(
+    builder: () => BackgroundAudioHandler(),
+    config: const AudioServiceConfig(
+      androidNotificationChannelId: 'com.tingyue.audio',
+      androidNotificationChannelName: '听阅音频播放',
+      androidNotificationOngoing: true,
+      androidStopForegroundOnPause: false,
+    ),
+  );
+  
   // 在 iOS 和 Android 平台启动 Alibaba Cloud RUM，鸿蒙平台不启动
   if (Platform.isIOS || Platform.isAndroid) {
     AlibabaCloudRUM().start(const MyApp());

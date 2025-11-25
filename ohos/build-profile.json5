@@ -5,13 +5,13 @@
         "name": "default",
         "type": "HarmonyOS",
         "material": {
-          "certpath": "/Users/dpguo/.ohos/config/default_ohos_K4Ga3T9DoUqnaSfGjWuCvTMNmA1Ghzqxx534mY-pqH8=.cer",
-          "keyAlias": "debugKey",
-          "keyPassword": "000000196A04E0394F533C3A8722FE923CFECD8AFFC860C9C4066D60AA6390D7EF524EE655D76B99BA",
-          "profile": "/Users/dpguo/.ohos/config/default_ohos_K4Ga3T9DoUqnaSfGjWuCvTMNmA1Ghzqxx534mY-pqH8=.p7b",
+          "storeFile": "/Users/dpguo/Desktop/apps/tts/liuchuangjia.p12",
+          "storePassword": "0000001C41522A20FA6AE24FE4E2EC64B73DC2F76A0B9F5012635A039BB2D69452617E169B8AD0EB6FB8C06D",
+          "keyAlias": "tingyue",
+          "keyPassword": "0000001C1B4198DF81B699C33CBB6EFDAFC2D24CE5B42C7C8096F2CF35E3E03A5AC1C80072E64FC91935DBAA",
           "signAlg": "SHA256withECDSA",
-          "storeFile": "/Users/dpguo/.ohos/config/default_ohos_K4Ga3T9DoUqnaSfGjWuCvTMNmA1Ghzqxx534mY-pqH8=.p12",
-          "storePassword": "00000019013FDAAB4DA8727D3F367A0894F334A6D17F07B06BC0CBF8DABB7F72ADC688D1552228EE99"
+          "profile": "/Users/dpguo/Desktop/apps/tts/liuchuangjiaDebug-2.p7b",
+          "certpath": "/Users/dpguo/Desktop/apps/tts/liuchuangjia.cer"
         }
       }
     ],

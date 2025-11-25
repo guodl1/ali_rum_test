@@ -1,8 +1,10 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:audio_service/audio_service.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'audio_download_service.dart';
+import 'background_audio_handler.dart';
 
 /// 音频服务类
 /// 管理音频播放、暂停、停止等功能，支持断点续播
@@ -13,6 +15,7 @@ class AudioService {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioDownloadService _downloadService = AudioDownloadService();
+  BackgroundAudioHandler? _backgroundHandler;
   
   // 状态流
   final StreamController<PlayerState> _stateController = StreamController<PlayerState>.broadcast();
@@ -41,6 +44,7 @@ class AudioService {
   AudioService._internal() {
     _initializeListeners();
     _startAutoSaveProgress();
+    // Background handler will be set when play() is first called
   }
 
   void _initializeListeners() {
@@ -167,6 +171,29 @@ class AudioService {
             },
           );
           _currentLocalPath = localPath;
+        }
+        
+        // 获取后台处理器引用（如果还没有）
+        if (_backgroundHandler == null) {
+          try {
+            // 尝试从全局的 AudioService 获取 handler
+            // Note: 这需要从 main.dart 初始化的 handler 实例获取
+            // 由于无法直接访问，我们暂时跳过 - handler 会在 main 中初始化
+            // 后续可以通过 global 变量或 service locator 模式获取
+          } catch (e) {
+            print('Could not get background handler: $e');
+          }
+        }
+        
+        // 更新后台处理器的媒体信息
+        if (_backgroundHandler != null) {
+          final mediaItem = MediaItem(
+            id: url,
+            title: '听阅音频',
+            artist: '听阅 TTS',
+            duration: _totalDuration,
+          );
+          await _backgroundHandler!.loadAudioFromFile(localPath, mediaItem);
         }
         
         // 使用本地文件路径播放

@@ -14,6 +14,10 @@
     
     <!-- 相机权限 -->
     <uses-permission android:name="android.permission.CAMERA"/>
+    
+    <!-- 后台音频播放权限 -->
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
 
     <!-- 允许覆盖阿里一键登录相关库的最低 SDK 限制 -->
     <uses-sdk tools:overrideLibrary="com.example.tingyue.ali_auth,com.mobile.auth"/>
@@ -92,6 +96,23 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+             
+        <!-- 后台音频服务 -->
+        <service android:name="com.ryanheise.audioservice.AudioService"
+            android:foregroundServiceType="mediaPlayback"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.media.browse.MediaBrowserService" />
+            </intent-filter>
+        </service>
+         
+        <!-- 媒体按钮接收器 -->
+        <receiver android:name="com.ryanheise.audioservice.MediaButtonReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MEDIA_BUTTON" />
+            </intent-filter>
+        </receiver>
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and
