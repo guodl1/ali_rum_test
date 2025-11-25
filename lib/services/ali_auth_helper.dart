@@ -74,7 +74,8 @@ class AliAuthHelper {
         // Show navigation bar but hide its title text; keep the return/back button visible.
         navHidden: false,
         navText: '',
-        navTextColor: '#00FFFFFF',
+        navTextColor: '#000000',
+        navColor: '#00000000',
         navReturnHidden: false,
         switchAccHidden: true,
         sloganHidden: true,
@@ -83,7 +84,7 @@ class AliAuthHelper {
         logBtnTextColor: '#000000',
         // note: custom background images can be provided via `logBtnBackgroundPath` if you add assets.
         // place the privacy text below the login button (value used in other places: 400)
-        logBtnOffsetY: 360,
+        logBtnOffsetY: 320,
         privacyOffsetY: 400,
         privacyMargin: 16,
         // keep checkbox visible by default; if you want it hidden, set `checkboxHidden: true`
