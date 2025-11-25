@@ -358,11 +358,11 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
       navTextColor: '#FFFFFF',
       
       // 必须设置图片路径，即使隐藏，否则可能报 flutter_assets/null 错误
-      navReturnImgPath: 'assets/background.jpeg', 
+      navReturnImgPath: 'assets/background.jpg', 
       navReturnHidden: true, 
       
       // Slogan 与 Logo
-      logoImgPath: 'assets/background.jpeg',
+      logoImgPath: 'assets/background.jpg',
       logoHidden: true, 
       sloganHidden: true, 
       
@@ -377,7 +377,7 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
       switchAccHidden: true, 
 
       // 页面背景与模式
-      pageBackgroundPath: 'assets/background.jpeg', 
+      pageBackgroundPath: 'assets/background.jpg', 
       backgroundImageContentMode: ContentMode.scaleAspectFill,
       
       // 行为配置
@@ -388,8 +388,8 @@ class _LoginPageState extends State<LoginPage> with WidgetsBindingObserver {
       privacyState: false, 
       privacyOffsetY: 10, 
       // 必须设置 Checkbox 图片路径，否则报 flutter_assets/null 错误
-      uncheckedImgPath: 'assets/background.jpeg',
-      checkedImgPath: 'assets/background.jpeg',
+      uncheckedImgPath: 'assets/background.jpg',
+      checkedImgPath: 'assets/background.jpg',
       checkboxHidden: false, // 隐私协议必须勾选，通常不能完全隐藏 Checkbox，但可以自定义图标
     );
   }
