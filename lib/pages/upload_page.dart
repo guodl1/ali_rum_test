@@ -16,6 +16,7 @@ import '../services/language_service.dart';
 import '../services/local_history_service.dart';
 import '../services/audio_download_service.dart';
 import '../services/usage_stats_service.dart';
+import '../services/system_tts_service.dart';
 import '../models/models.dart';
 import 'voice_library_page.dart';
 import 'audio_player_page.dart';
@@ -728,6 +729,94 @@ class _UploadPageState extends State<UploadPage> {
       _isUploading = true;
       _generateProgress = 0.0;
     });
+
+    // 检查是否是系统语音 (Free tier)
+    if (_selectedVoice!.provider == 'system' || _selectedVoice!.voiceType == 'free') {
+      try {
+        // 获取要朗读的文本
+        String textToSpeak = _previewTextController.text;
+        if (textToSpeak.isEmpty && _extractedText != null) {
+          textToSpeak = _extractedText!;
+        }
+        
+        if (textToSpeak.isEmpty) {
+           if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No text to synthesize')));
+           setState(() { _isUploading = false; });
+           return;
+        }
+
+        // 模拟进度
+        setState(() { _generateProgress = 0.3; });
+        
+        final systemTtsService = SystemTTSService();
+        final filePath = await systemTtsService.synthesizeToFile(
+          textToSpeak,
+          _selectedVoice!.name,
+          _selectedVoice!.language,
+        );
+        
+        setState(() { _generateProgress = 0.8; });
+
+        if (filePath != null) {
+          final file = File(filePath);
+          if (await file.exists()) {
+             // 播放本地文件
+             await _audioService.play(filePath);
+             
+             setState(() { _generateProgress = 1.0; });
+             
+             // 导航到播放页面 (可选，或者直接在当前页播放? 
+             // 原逻辑似乎是下载后播放，并可能跳转? 
+             // 查看 _downloadAndPlayAudio 逻辑: 它会导航到 AudioPlayerPage)
+             
+             if (mounted) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => AudioPlayerPage(
+                      history: HistoryModel(
+                        id: -1, // Temporary ID for local system voice
+                        userId: 0,
+                        fileId: -1,
+                        voiceType: 'system',
+                        voiceName: _selectedVoice!.name,
+                        audioUrl: filePath,
+                        createdAt: DateTime.now(),
+                        isFavorite: false,
+                        file: FileModel(
+                          id: -1,
+                          userId: 0,
+                          type: 'text',
+                          originalName: 'System Voice',
+                          size: 0,
+                          uploadTime: DateTime.now(),
+                          status: 'completed',
+                          resultText: textToSpeak,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+             }
+          } else {
+             throw Exception('Generated file not found');
+          }
+        } else {
+          throw Exception('Failed to generate audio file');
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('System TTS failed: $e')));
+        }
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isUploading = false;
+          });
+        }
+      }
+      return;
+    }
 
     // 如果存在选中文件，统一交给服务器处理：先上传，拿到 file_id 后把 file_id 一并传给 generateAudio
     int? fileIdToSend;

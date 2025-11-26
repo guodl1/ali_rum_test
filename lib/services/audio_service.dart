@@ -148,29 +148,40 @@ class AudioService {
         _currentUrl = url;
         _currentHistoryId = historyId;
         
-        // 先检查本地是否已有缓存
+        // 先检查是否是本地文件路径
         String localPath;
-        final cachedPath = await _downloadService.getLocalFilePath(url);
+        final bool isLocalFile = !url.startsWith('http') && !url.startsWith('https');
         
-        if (cachedPath != null) {
-          // 使用缓存的本地文件
-          localPath = cachedPath;
+        if (isLocalFile) {
+          localPath = url;
           _currentLocalPath = localPath;
           if (onDownloadProgress != null) {
-            onDownloadProgress(1.0); // 已缓存，进度为100%
+            onDownloadProgress(1.0);
           }
         } else {
-          // 下载音频文件到本地
-          localPath = await _downloadService.downloadAudio(
-            url,
-            onProgress: (progress) {
-              _downloadProgressController.add(progress);
-              if (onDownloadProgress != null) {
-                onDownloadProgress(progress);
-              }
-            },
-          );
-          _currentLocalPath = localPath;
+          // 检查本地缓存
+          final cachedPath = await _downloadService.getLocalFilePath(url);
+          
+          if (cachedPath != null) {
+            // 使用缓存的本地文件
+            localPath = cachedPath;
+            _currentLocalPath = localPath;
+            if (onDownloadProgress != null) {
+              onDownloadProgress(1.0); // 已缓存，进度为100%
+            }
+          } else {
+            // 下载音频文件到本地
+            localPath = await _downloadService.downloadAudio(
+              url,
+              onProgress: (progress) {
+                _downloadProgressController.add(progress);
+                if (onDownloadProgress != null) {
+                  onDownloadProgress(progress);
+                }
+              },
+            );
+            _currentLocalPath = localPath;
+          }
         }
         
         // 获取后台处理器引用（如果还没有）

@@ -274,6 +274,7 @@ class ApiService {
   /// 检查语音类型数量
   Future<Map<String, dynamic>> checkVoiceTypesCount({
     String? versionTag,
+    String? tier,
   }) async {
     try {
       final queryParams = <String, dynamic>{
@@ -281,6 +282,9 @@ class ApiService {
       };
       if (versionTag != null) {
         queryParams['version_tag'] = versionTag;
+      }
+      if (tier != null) {
+        queryParams['tier'] = tier;
       }
 
       final response = await _dio.get(
@@ -309,6 +313,7 @@ class ApiService {
   Future<Map<String, dynamic>> getVoiceTypes({
     String? language,
     String? versionTag,
+    String? tier,
   }) async {
     try {
       final queryParams = <String, dynamic>{};
@@ -317,6 +322,9 @@ class ApiService {
       }
       if (versionTag != null) {
         queryParams['version_tag'] = versionTag;
+      }
+      if (tier != null) {
+        queryParams['tier'] = tier;
       }
 
       final response = await _dio.get(

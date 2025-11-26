@@ -27,9 +27,7 @@ class _UploadOptionsDialogState extends State<UploadOptionsDialog> with SingleTi
   int _selectedIndex = -1; // -1: none
   bool _isLoading = false;
   double _progress = 0.0;
-  int _selectedIndex = -1; // -1: none
-  bool _isLoading = false;
-  double _progress = 0.0;
+
   Timer? _progressTimer;
   final ApiService _api = ApiService();
 

@@ -5,7 +5,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/models.dart';
 import '../services/api_service.dart';
+import '../services/api_service.dart';
 import '../services/audio_service.dart';
+import '../services/system_tts_service.dart';
 import '../widgets/liquid_glass_card.dart';
 import '../widgets/voice_card_widget.dart';
 
@@ -20,19 +22,23 @@ class VoiceLibraryPage extends StatefulWidget {
 class _VoiceLibraryPageState extends State<VoiceLibraryPage> {
   final ApiService _apiService = ApiService();
   final AudioService _audioService = AudioService();
+  final SystemTTSService _systemTtsService = SystemTTSService();
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
   List<VoiceTypeModel> _voices = [];
   List<VoiceTypeModel> _filteredVoices = [];
   String _activeFilter = 'all';
+  String _selectedTier = 'free'; // 'free', 'basic', 'premium'
   bool _isLoading = false;
-  String? _versionTag; // 存储当前版本标签
+  String? _versionTagBasic; // 存储 Basic 版本标签
+  String? _versionTagPremium; // 存储 Premium 版本标签
   String? _loadingPreviewVoiceId; // 当前正在加载试听的 voice id
 
   // 缓存过滤结果，避免重复计算
   String _lastSearchKeyword = '';
   String _lastFilter = '';
+  String _lastTier = '';
 
   // 基础语言标签 - 添加普通话、粤语、英文、其他分类
   static const Map<String, String> _baseLanguageLabels = {
@@ -53,7 +59,8 @@ class _VoiceLibraryPageState extends State<VoiceLibraryPage> {
   Future<void> _initializeVoices() async {
     // 从本地存储读取版本标签
     final prefs = await SharedPreferences.getInstance();
-    _versionTag = prefs.getString('voice_library_version_tag');
+    _versionTagBasic = prefs.getString('voice_library_version_tag_basic');
+    _versionTagPremium = prefs.getString('voice_library_version_tag_premium');
     // 读取本地缓存的声线数据（如果存在）
     final cached = prefs.getString('voice_library_data');
     if (cached != null && cached.isNotEmpty) {
@@ -82,83 +89,120 @@ class _VoiceLibraryPageState extends State<VoiceLibraryPage> {
     });
 
     try {
-      print('[VoiceLibrary] Syncing voices, version_tag: $_versionTag');
+      print('[VoiceLibrary] Syncing voices');
       
-      // 先检查数量
-      final checkResult = await _apiService.checkVoiceTypesCount(
-        versionTag: _versionTag,
-      );
+
       
-      if (!mounted) return;
+
+      final currentTier = _selectedTier;
+      String? currentVersionTag;
+      if (currentTier == 'basic') currentVersionTag = _versionTagBasic;
+      else if (currentTier == 'premium') currentVersionTag = _versionTagPremium;
+
+      print('[VoiceLibrary] Syncing voices for tier: $currentTier, version_tag: $currentVersionTag');
       
-      final bool needsUpdate = checkResult['needs_update'] ?? true;
-      final String? newVersionTag = checkResult['version_tag'];
-      final int serverCount = checkResult['count'] ?? 0;
-      
-      print('[VoiceLibrary] Count check - needs_update: $needsUpdate, server_count: $serverCount, local_count: ${_voices.length}');
-      
-      // 如果数量相同，不需要更新
-      if (!needsUpdate && _voices.isNotEmpty) {
-        print('[VoiceLibrary] Count match, no update needed');
-        // 更新版本标签（可能格式有变化但数量相同）
-        if (newVersionTag != null && newVersionTag != _versionTag) {
+      List<VoiceTypeModel> voices = [];
+
+      if (currentTier == 'free') {
+        // Free tier: System TTS
+        voices = await _systemTtsService.getVoices();
+      } else if (currentTier == 'basic' || currentTier == 'premium') {
+        // Basic/Premium tier: Fetch from API with tier parameter
+        
+        // 1. Check count/version first
+        final checkResult = await _apiService.checkVoiceTypesCount(
+          versionTag: currentVersionTag,
+          tier: currentTier,
+        );
+        
+        if (!mounted) return;
+        
+        final bool needsUpdate = checkResult['needs_update'] ?? true;
+        final String? newVersionTag = checkResult['version_tag'];
+        
+        // If no update needed, try to load from local cache (if we have logic for per-tier cache, 
+        // but currently we only have one global cache file in the code structure shown previously.
+        // To support per-tier offline cache properly, we should split the cache key.
+        // For now, let's just fetch if needsUpdate is true, or if _voices is empty/wrong tier.
+        
+        // Simplified logic: If needs update OR current voices are empty OR current voices don't match tier
+        
+        // Let's try to fetch if needsUpdate.
+        if (needsUpdate) {
+           print('[VoiceLibrary] Update needed for tier $currentTier');
+           final result = await _apiService.getVoiceTypes(
+            language: _activeFilter == 'all' ? null : _activeFilter,
+            versionTag: null, // Force fetch
+            tier: currentTier,
+          );
+          voices = result['voices'] ?? [];
+          final String? finalVersionTag = result['version_tag'];
+          
+          // Update version tag
+          if (finalVersionTag != null) {
+            final prefs = await SharedPreferences.getInstance();
+            if (currentTier == 'basic') {
+              _versionTagBasic = finalVersionTag;
+              await prefs.setString('voice_library_version_tag_basic', finalVersionTag);
+            } else {
+              _versionTagPremium = finalVersionTag;
+              await prefs.setString('voice_library_version_tag_premium', finalVersionTag);
+            }
+          }
+          
+          // Cache voices locally (per tier)
+          try {
+            final prefs = await SharedPreferences.getInstance();
+            final List<Map<String, dynamic>> serialized = voices.map((v) => v.toJson()).toList();
+            await prefs.setString('voice_library_data_$currentTier', jsonEncode(serialized));
+          } catch (e) {
+            print('[VoiceLibrary] Failed to cache voices: $e');
+          }
+        } else {
+          print('[VoiceLibrary] No update needed for tier $currentTier, loading from cache');
+          // Load from cache
           final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('voice_library_version_tag', newVersionTag);
-          _versionTag = newVersionTag;
+          final cached = prefs.getString('voice_library_data_$currentTier');
+          if (cached != null) {
+             final List<dynamic> arr = jsonDecode(cached);
+             voices = arr.map((e) => VoiceTypeModel.fromJson(Map<String, dynamic>.from(e))).toList();
+          } else {
+            // Fallback to fetch if cache missing
+            final result = await _apiService.getVoiceTypes(
+              language: _activeFilter == 'all' ? null : _activeFilter,
+              tier: currentTier,
+            );
+            voices = result['voices'] ?? [];
+          }
         }
-        setState(() {
-          _isLoading = false;
-        });
-        return;
       }
-      
-      // 如果数量不同或没有本地数据，获取完整数据
-      print('[VoiceLibrary] Count mismatch or no local data, fetching full voice list...');
-      final result = await _apiService.getVoiceTypes(
-        language: _activeFilter == 'all' ? null : _activeFilter,
-        versionTag: null, // 不传版本标签，强制获取完整数据
-      );
       
       if (!mounted) return;
       
-      final List<VoiceTypeModel> voices = result['voices'] ?? [];
-      final String? finalVersionTag = result['version_tag'];
+      // Double check we are still on the same tier (async race condition)
+      if (_selectedTier != currentTier) return;
       
-      print('[VoiceLibrary] Received ${voices.length} voices, version_tag: $finalVersionTag');
-      
-      // 保存新版本标签
-      if (finalVersionTag != null) {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('voice_library_version_tag', finalVersionTag);
-        _versionTag = finalVersionTag;
-      }
-      // 将完整声线列表缓存到本地（以便离线或快速启动使用）
-      try {
-        final prefs = await SharedPreferences.getInstance();
-        final List<Map<String, dynamic>> serialized = voices.map((v) => v.toJson()).toList();
-        await prefs.setString('voice_library_data', jsonEncode(serialized));
-        print('[VoiceLibrary] Cached ${serialized.length} voices to local storage');
-      } catch (e) {
-        print('[VoiceLibrary] Failed to cache voices locally: $e');
-      }
+      print('[VoiceLibrary] Received ${voices.length} voices for tier $currentTier');
       
       setState(() {
         _voices = voices;
-        // 先更新过滤列表，再更新_lastFilter
         _filteredVoices = voices;
         _lastFilter = _activeFilter;
+        _lastTier = _selectedTier;
       });
-      // 应用过滤（即使条件相同也要执行，因为_voices可能刚更新）
+      // 应用过滤
       _applyFilters(force: true);
+      
+      // 滚动到上次选中的位置
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _scrollToSelectedVoice();
+      });
     } catch (e) {
       if (!mounted) return;
       print('[VoiceLibrary] Error syncing voices: $e');
-      // 如果同步失败，尝试加载本地缓存的数据
-      if (_voices.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error syncing voices: $e')),
+        SnackBar(content: Text('Error loading voices: $e')),
       );
-      }
     } finally {
       if (mounted) {
         setState(() {
@@ -184,13 +228,14 @@ class _VoiceLibraryPageState extends State<VoiceLibraryPage> {
   void _applyFilters({bool force = false}) {
     final keyword = _searchController.text.trim().toLowerCase();
     
-    // 如果搜索关键词和筛选器都没变，且不是强制更新，不重新计算
-    if (!force && keyword == _lastSearchKeyword && _activeFilter == _lastFilter) {
+    // 如果搜索关键词、筛选器和层级都没变，且不是强制更新，不重新计算
+    if (!force && keyword == _lastSearchKeyword && _activeFilter == _lastFilter && _selectedTier == _lastTier) {
       return;
     }
 
     _lastSearchKeyword = keyword;
     _lastFilter = _activeFilter;
+    _lastTier = _selectedTier;
     
     print('[VoiceLibrary] Applying filters - keyword: "$keyword", filter: $_activeFilter, voices count: ${_voices.length}');
     
@@ -205,8 +250,14 @@ class _VoiceLibraryPageState extends State<VoiceLibraryPage> {
         }
         
         // 2. 语言过滤
+        final voiceLanguage = _classifyLanguage(voice);
+        
+        // 始终过滤掉 'other' 语言
+        if (voiceLanguage == 'other') {
+          return false;
+        }
+
         if (_activeFilter != 'all') {
-          final voiceLanguage = _classifyLanguageFromVoiceId(voice.voiceId);
           if (voiceLanguage != _activeFilter) {
             return false;
           }
@@ -230,9 +281,22 @@ class _VoiceLibraryPageState extends State<VoiceLibraryPage> {
     }
   }
 
-  // 从 voice_id 分类语言：Mandarin/Cantonese/English/Other
-  String _classifyLanguageFromVoiceId(String voiceId) {
-    final lowerVoiceId = voiceId.toLowerCase();
+  // 根据 voice 信息分类语言
+  String _classifyLanguage(VoiceTypeModel voice) {
+    // 1. 优先使用 language 字段判断
+    final lang = voice.language.toLowerCase();
+    if (lang.startsWith('zh')) {
+      if (lang.contains('hk') || lang.contains('cantonese')) {
+        return 'cantonese';
+      }
+      return 'mandarin';
+    }
+    if (lang.startsWith('en')) {
+      return 'english';
+    }
+
+    // 2. 如果 language 字段不明确，回退到使用 ID 判断 (兼容旧逻辑)
+    final lowerVoiceId = voice.voiceId.toLowerCase();
     
     // 检查是否包含 "chinese (mandarin)" 或 "mandarin"
     if (lowerVoiceId.contains('chinese (mandarin)') || 
@@ -249,13 +313,48 @@ class _VoiceLibraryPageState extends State<VoiceLibraryPage> {
     if (lowerVoiceId.contains('english')) {
       return 'english';
     }
-    // 其他语言
+    
     return 'other';
   }
   
-  void _onVoiceSelected(VoiceTypeModel voice) {
+  Future<void> _onVoiceSelected(VoiceTypeModel voice) async {
+    // 保存选中的 voice id
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('last_selected_voice_id', voice.id);
+    
+    if (!mounted) return;
     // 选中即确认，直接返回
     Navigator.pop(context, voice);
+  }
+
+  // 滚动到上次选中的位置
+  Future<void> _scrollToSelectedVoice() async {
+    final prefs = await SharedPreferences.getInstance();
+    final lastVoiceId = prefs.getString('last_selected_voice_id');
+    
+    if (lastVoiceId != null && _filteredVoices.isNotEmpty) {
+      final index = _filteredVoices.indexWhere((v) => v.id == lastVoiceId);
+      if (index != -1) {
+        // 延时一小段时间确保列表已渲染
+        await Future.delayed(const Duration(milliseconds: 300));
+        if (_scrollController.hasClients) {
+          // 估算高度：每个 item 约 100 (card) + 12 (separator)
+          // 这里的 100 是估计值，LiquidGlassCard 内容高度约为 70-80 + padding
+          const double estimatedItemHeight = 110.0; 
+          final double offset = index * estimatedItemHeight;
+          
+          // 确保不超过最大滚动范围
+          final maxScroll = _scrollController.position.maxScrollExtent;
+          final targetOffset = offset > maxScroll ? maxScroll : offset;
+          
+          _scrollController.animateTo(
+            targetOffset,
+            duration: const Duration(milliseconds: 500),
+            curve: Curves.easeOut,
+          );
+        }
+      }
+    }
   }
 
   @override
@@ -295,7 +394,9 @@ class _VoiceLibraryPageState extends State<VoiceLibraryPage> {
                   child: Column(
                 children: [
                   _buildHeader(textColor),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
+                  _buildSegmentedControl(textColor, accentColor),
+                  const SizedBox(height: 16),
                   _buildSearchBar(textColor),
                   const SizedBox(height: 16),
                   _buildFilterChips(textColor, accentColor),
@@ -385,42 +486,102 @@ class _VoiceLibraryPageState extends State<VoiceLibraryPage> {
   Widget _buildSearchBar(Color textColor) {
     return StatefulBuilder(
       builder: (context, setState) {
-    return LiquidGlassCard(
-      borderRadius: 22,
-      backgroundColor: textColor.withValues(alpha: 0.05),
-      child: Row(
-        children: [
-          Icon(Icons.search, color: textColor.withValues(alpha: 0.6)),
-          const SizedBox(width: 12),
-          Expanded(
-            child: TextField(
-              controller: _searchController,
-              style: TextStyle(color: textColor),
+        return LiquidGlassCard(
+          borderRadius: 22,
+          backgroundColor: textColor.withValues(alpha: 0.05),
+          child: Row(
+            children: [
+              Icon(Icons.search, color: textColor.withValues(alpha: 0.6)),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextField(
+                  controller: _searchController,
+                  style: TextStyle(color: textColor),
                   onChanged: (value) {
                     setState(() {}); // 更新清除按钮的显示状态
                     _applyFilters();
                   },
-              decoration: InputDecoration(
-                hintText: '搜索',
-                border: InputBorder.none,
-                isCollapsed: true,
-                hintStyle: TextStyle(color: textColor.withValues(alpha: 0.4)),
+                  decoration: InputDecoration(
+                    hintText: '搜索',
+                    border: InputBorder.none,
+                    isCollapsed: true,
+                    hintStyle: TextStyle(color: textColor.withValues(alpha: 0.4)),
+                  ),
+                ),
               ),
-            ),
-          ),
-          if (_searchController.text.isNotEmpty)
-            IconButton(
-              onPressed: () {
-                _searchController.clear();
+              if (_searchController.text.isNotEmpty)
+                IconButton(
+                  onPressed: () {
+                    _searchController.clear();
                     setState(() {}); // 更新清除按钮的显示状态
-                _applyFilters();
-              },
-              icon: Icon(Icons.close, color: textColor.withValues(alpha: 0.6)),
-            ),
-        ],
-      ),
+                    _applyFilters();
+                  },
+                  icon: Icon(Icons.close, color: textColor.withValues(alpha: 0.6)),
+                ),
+            ],
+          ),
         );
       },
+    );
+  }
+
+  Widget _buildSegmentedControl(Color textColor, Color accentColor) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: textColor.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          _buildSegmentItem('Free', 'free', textColor, accentColor),
+          _buildSegmentItem('Basic', 'basic', textColor, accentColor),
+          _buildSegmentItem('Premium', 'premium', textColor, accentColor),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSegmentItem(String label, String value, Color textColor, Color accentColor) {
+    final isSelected = _selectedTier == value;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          if (_selectedTier != value) {
+            setState(() {
+              _selectedTier = value;
+            });
+            _loadVoices();
+          }
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected ? Colors.white : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : [],
+          ),
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: isSelected ? Colors.black : textColor.withValues(alpha: 0.6),
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+              fontSize: 14,
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -582,7 +743,17 @@ class _VoiceLibraryPageState extends State<VoiceLibraryPage> {
     });
 
     try {
-      // 检查 voice 是否有 preview_url
+      // 检查 voice 是否有 preview_url (Free tier might not have one, but we handle it)
+      if (_selectedTier == 'free') {
+        // System TTS preview
+        await _systemTtsService.preview(
+          '晚上好啊.', 
+          voice.name, 
+          voice.language
+        );
+        return;
+      }
+
       if (voice.previewUrl.isEmpty) {
         // 没有试听URL，提示用户
         if (!mounted) return;

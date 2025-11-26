@@ -90,6 +90,7 @@ dependencies:
   # Alibaba Cloud RUM - 用户体验监控
   alibabacloud_rum_flutter_plugin: ^1.0.2
   liquid_glass_renderer: ^0.2.0-dev.3
+  flutter_tts: ^4.2.3
 
 
 dev_dependencies:
@@ -119,6 +120,7 @@ flutter:
   assets:
     - referPhoto/male-2.svg
     - referPhoto/female-2.svg
+    - assets/background.jpg
     - white.jpg
     - iconfontcheckboxunchecked.svg
     - iconfontcheckboxchecked.svg
