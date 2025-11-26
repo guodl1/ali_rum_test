@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
+import 'dart:async';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -26,6 +27,10 @@ class _UploadOptionsDialogState extends State<UploadOptionsDialog> with SingleTi
   int _selectedIndex = -1; // -1: none
   bool _isLoading = false;
   double _progress = 0.0;
+  int _selectedIndex = -1; // -1: none
+  bool _isLoading = false;
+  double _progress = 0.0;
+  Timer? _progressTimer;
   final ApiService _api = ApiService();
 
   @override
@@ -44,6 +49,7 @@ class _UploadOptionsDialogState extends State<UploadOptionsDialog> with SingleTi
 
   @override
   void dispose() {
+    _progressTimer?.cancel();
     _controller.dispose();
     super.dispose();
   }
@@ -165,8 +171,37 @@ class _UploadOptionsDialogState extends State<UploadOptionsDialog> with SingleTi
     );
   }
 
+  void _startProgressTimer() {
+    _progressTimer?.cancel();
+    _progress = 0.0;
+    // 总时长约 15 秒，每 100ms 更新一次
+    // 15000ms / 100ms = 150 steps
+    // step size = 1.0 / 150 ≈ 0.0066
+    const totalDuration = 15000;
+    const updateInterval = 100;
+    const steps = totalDuration / updateInterval;
+    const increment = 0.95 / steps; // 预留 5% 给完成状态
+
+    _progressTimer = Timer.periodic(const Duration(milliseconds: updateInterval), (timer) {
+      if (mounted) {
+        setState(() {
+          if (_progress < 0.95) {
+            _progress += increment;
+          }
+        });
+      } else {
+        timer.cancel();
+      }
+    });
+  }
+
   void _handleSimpleAction(String option) async {
-     setState(() { _progress = 1.0; });
+     setState(() { 
+       _selectedIndex = -1; // Simple actions don't show progress bar in the same way or maybe they should? 
+       // The original code set progress to 1.0 immediately. Let's keep it simple for now or ask user if they want 15s for this too.
+       // Assuming simple actions are instant/navigation, so no 15s wait needed.
+       _progress = 1.0; 
+     });
      await Future.delayed(const Duration(milliseconds: 300));
      widget.onOptionSelected?.call(option);
   }
@@ -179,7 +214,9 @@ class _UploadOptionsDialogState extends State<UploadOptionsDialog> with SingleTi
         return;
       }
 
-      setState(() => _progress = 0.3);
+      // Start timer when file picker opens? Or after selection?
+      // Usually after selection is better for "uploading" phase.
+      // But to match "filling" UI, let's wait for selection first.
 
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
@@ -204,7 +241,8 @@ class _UploadOptionsDialogState extends State<UploadOptionsDialog> with SingleTi
           return;
         }
         
-        setState(() => _progress = 0.5);
+        // Start progress timer here
+        _startProgressTimer();
         
         try {
           final ext = file.path.split('.').last.toLowerCase();
@@ -213,9 +251,13 @@ class _UploadOptionsDialogState extends State<UploadOptionsDialog> with SingleTi
           else if (ext == 'pdf') fileType = 'pdf';
           else if (['docx', 'doc'].contains(ext)) fileType = 'docx';
 
-          setState(() => _progress = 0.7);
           final resp = await _api.uploadFile(file: file, fileType: fileType);
-          setState(() => _progress = 1.0);
+          
+          // Complete progress
+          _progressTimer?.cancel();
+          if (mounted) {
+            setState(() => _progress = 1.0);
+          }
           
           await Future.delayed(const Duration(milliseconds: 300));
           
@@ -242,7 +284,7 @@ class _UploadOptionsDialogState extends State<UploadOptionsDialog> with SingleTi
         return;
       }
 
-      setState(() => _progress = 0.3);
+      // setState(() => _progress = 0.3); // Don't show progress before picking
 
       final ImagePicker picker = ImagePicker();
       final XFile? pickedFile = await picker.pickImage(
@@ -254,12 +296,16 @@ class _UploadOptionsDialogState extends State<UploadOptionsDialog> with SingleTi
 
       if (pickedFile != null) {
         final file = File(pickedFile.path);
-        setState(() => _progress = 0.5);
+        
+        _startProgressTimer();
         
         try {
-          setState(() => _progress = 0.7);
           final resp = await _api.uploadFile(file: file, fileType: 'image');
-          setState(() => _progress = 1.0);
+          
+          _progressTimer?.cancel();
+          if (mounted) {
+            setState(() => _progress = 1.0);
+          }
           
           await Future.delayed(const Duration(milliseconds: 300));
           
@@ -286,7 +332,7 @@ class _UploadOptionsDialogState extends State<UploadOptionsDialog> with SingleTi
         return;
       }
 
-      setState(() => _progress = 0.3);
+      // setState(() => _progress = 0.3);
 
       final ImagePicker picker = ImagePicker();
       final List<XFile> pickedFiles = await picker.pickMultiImage(
@@ -297,12 +343,16 @@ class _UploadOptionsDialogState extends State<UploadOptionsDialog> with SingleTi
 
       if (pickedFiles.isNotEmpty) {
         final files = pickedFiles.map((x) => File(x.path)).toList();
-        setState(() => _progress = 0.5);
+        
+        _startProgressTimer();
         
         try {
-          setState(() => _progress = 0.7);
           final resp = await _api.uploadImages(files: files);
-          setState(() => _progress = 1.0);
+          
+          _progressTimer?.cancel();
+          if (mounted) {
+            setState(() => _progress = 1.0);
+          }
           
           await Future.delayed(const Duration(milliseconds: 300));
           
@@ -326,6 +376,7 @@ class _UploadOptionsDialogState extends State<UploadOptionsDialog> with SingleTi
       _selectedIndex = -1;
       _isLoading = false;
       _progress = 0.0;
+      _progressTimer?.cancel();
     });
   }
 

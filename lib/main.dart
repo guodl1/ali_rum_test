@@ -25,7 +25,7 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  ThemeMode _themeMode = ThemeMode.system;
+
 
   bool _isInitialized = false;
 
@@ -90,8 +90,8 @@ class _MyAppState extends State<MyApp> {
       
       // 主题配置
       theme: _buildLightTheme(),
-      darkTheme: _buildDarkTheme(),
-      themeMode: _themeMode,
+      // darkTheme: _buildDarkTheme(), // 移除暗黑模式支持
+      themeMode: ThemeMode.light, // 强制使用亮色模式
       
       // 首页
       home: const MainNavigator(),
